@@ -13,7 +13,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { Logger } = require('../utils/logger');
 
-const INTERVALO_NORMAL     = 10000;  // 10s — seguro para call Claude ~7s
+const INTERVALO_NORMAL     = 5000;   // 5s — call Claude ~3-4s, sem sobreposição
 const MAX_TOKENS = 600;
 
 // Horários BRT
