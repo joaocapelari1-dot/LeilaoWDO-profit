@@ -64,7 +64,7 @@ const SCHEDULE = {
   ULTRA_MIN:    0,
 };
 
-const INTERVAL_NORMAL  = 5 * 60 * 1000; // 5min — Twelve Data (~36 calls/dia, bem abaixo do limite 800)
+const INTERVAL_NORMAL  = 2 * 60 * 1000; // 2min — Twelve Data (~277 calls/dia, abaixo do limite 800)
 const INTERVAL_FAST   = 2000;    // 2s
 const INTERVAL_ULTRA  = 500;     // 500ms
 
