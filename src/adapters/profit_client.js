@@ -1,6 +1,6 @@
 'use strict';
 /**
- * ProfitClient v2.0
+ * ProfitClient v2.1
  * Conecta ao ProfitBridge (Python/Windows) via WebSocket
  * e emite os mesmos eventos que o LiveCedroClient emite.
  *
@@ -21,6 +21,7 @@ const PROFIT_BRIDGE_URL = process.env.PROFIT_BRIDGE_URL || 'ws://localhost:8787'
 const RECONNECT_BASE_MS = 3000;
 const RECONNECT_MAX_MS  = 30000;
 const MAX_RECONNECTS    = 999;
+const PING_INTERVAL_MS  = 5000; // 5s para manter Cloudflare Tunnel vivo
 
 const WDO_SYMBOLS = ['WDOFUT', 'WDON26', 'WDOQ26', 'WDOV26', 'WDO'];
 const DOL_SYMBOLS = ['DOLFUT', 'DOLN26', 'DOLQ26', 'DOLV26', 'DOL'];
@@ -31,6 +32,7 @@ class ProfitClient {
     this.ws         = null;
     this.reconnects = 0;
     this.authed     = false;
+    this._pingTimer = null;
 
     // Book acumulado por símbolo (price*100 → entry)
     this.bookWDO = { bids: {}, asks: {} };
@@ -61,6 +63,13 @@ class ProfitClient {
       this.reconnects = 0;
       console.log('[PROFIT-CLIENT] ✅ Conectado ao ProfitBridge');
       this.bus.emit('cedro:connected');
+
+      // Ping a cada 5s para manter Cloudflare Tunnel vivo
+      this._pingTimer = setInterval(() => {
+        if (this.ws && this.ws.readyState === 1) {
+          this.ws.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, PING_INTERVAL_MS);
     });
 
     this.ws.on('message', (data) => {
@@ -79,6 +88,7 @@ class ProfitClient {
 
     this.ws.on('close', () => {
       this.authed = false;
+      this._stopPing();
       console.warn('[PROFIT-CLIENT] Desconectado — reconectando...');
       this._scheduleReconnect();
     });
@@ -86,6 +96,13 @@ class ProfitClient {
     this.ws.on('error', (e) => {
       console.warn('[PROFIT-CLIENT] WS erro:', e.message);
     });
+  }
+
+  _stopPing() {
+    if (this._pingTimer) {
+      clearInterval(this._pingTimer);
+      this._pingTimer = null;
+    }
   }
 
   _scheduleReconnect() {
@@ -96,6 +113,7 @@ class ProfitClient {
   }
 
   disconnect() {
+    this._stopPing();
     if (this.ws) {
       this.ws.removeAllListeners();
       this.ws.close();
@@ -110,7 +128,6 @@ class ProfitClient {
     switch (msg.type) {
 
       case 'snapshot':
-        // Estado inicial ao conectar
         if (msg.auction_active) this.auctionActive = { ...msg.auction_active };
         this.authed = true;
         console.log('[PROFIT-CLIENT] Snapshot recebido — market_data:', msg.connection?.market_data);
@@ -123,32 +140,26 @@ class ProfitClient {
         }
         break;
 
-      // ── Trade / Tape reading ──────────────────────────────────────────────
       case 'trade':
         this._onTrade(msg);
         break;
 
-      // ── Preço Teórico (durante leilão) ───────────────────────────────────
       case 'theoretical_price':
         this._onTheoreticalPrice(msg);
         break;
 
-      // ── Estado do ticker (leilão/aberto/fechado) ─────────────────────────
       case 'ticker_state':
         this._onTickerState(msg);
         break;
 
-      // ── Offer Book L2 ────────────────────────────────────────────────────
       case 'offer_book':
         this._onOfferBook(msg);
         break;
 
-      // ── Topo do livro (bid/ask rápido) ───────────────────────────────────
       case 'tiny_book':
         this._onTinyBook(msg);
         break;
 
-      // ── Dados diários ─────────────────────────────────────────────────────
       case 'daily':
         this._onDaily(msg);
         break;
@@ -168,18 +179,17 @@ class ProfitClient {
     const isDOL = DOL_SYMBOLS.some(s => sym.includes(s));
     if (!isWDO && !isDOL) return;
 
-    // aggressor: 'BUY' | 'SELL' | 'AUCTION' | null
     const agressor = msg.aggressor === 'BUY'  ? 'buy'  :
                      msg.aggressor === 'SELL' ? 'sell' : 'balanced';
 
     const tick = {
-      symbol:    sym,
-      timestamp: msg.timestamp || Date.now(),
-      last:      msg.price     || 0,
-      bid:       isWDO ? (this.lastWDO.bid || 0) : (this.lastDOL.bid || 0),
-      ask:       isWDO ? (this.lastWDO.ask || 0) : (this.lastDOL.ask || 0),
-      trade_vol: msg.quantity  || 0,
-      auc_vol:   0,
+      symbol:       sym,
+      timestamp:    msg.timestamp || Date.now(),
+      last:         msg.price     || 0,
+      bid:          isWDO ? (this.lastWDO.bid || 0) : (this.lastDOL.bid || 0),
+      ask:          isWDO ? (this.lastWDO.ask || 0) : (this.lastDOL.ask || 0),
+      trade_vol:    msg.quantity  || 0,
+      auc_vol:      0,
       theor_price:  isWDO ? this.theorWDO.price : this.theorDOL.price,
       theor_qty:    isWDO ? this.theorWDO.qty   : this.theorDOL.qty,
       surplus:      0,
@@ -210,7 +220,6 @@ class ProfitClient {
     const price = msg.theoretical_price;
     const qty   = msg.theoretical_qty || 0;
 
-    // -Infinity = sem preço teórico ainda (leilão não formado)
     if (!isFinite(price) || price <= 0) return;
 
     if (isWDO) {
@@ -236,10 +245,10 @@ class ProfitClient {
     }
 
     this.bus.emit('cedro:ticker_state', {
-      symbol:    sym,
-      state:     msg.state,
+      symbol:     sym,
+      state:      msg.state,
       in_auction: msg.in_auction,
-      timestamp: msg.timestamp,
+      timestamp:  msg.timestamp,
     });
   }
 
@@ -250,14 +259,13 @@ class ProfitClient {
     const isDOL = DOL_SYMBOLS.some(s => sym.includes(s));
     if (!isWDO && !isDOL) return;
 
-    const book  = isWDO ? this.bookWDO : this.bookDOL;
-    const price = msg.price;
-    const qty   = msg.quantity || 0;
-    const side  = msg.side; // 'BUY' | 'SELL'
-    const action= msg.action; // 'ADD' | 'EDIT' | 'DELETE' | 'DELETE_FROM' | 'FULL_BOOK'
+    const book   = isWDO ? this.bookWDO : this.bookDOL;
+    const price  = msg.price;
+    const qty    = msg.quantity || 0;
+    const side   = msg.side;
+    const action = msg.action;
 
     if (action === 'FULL_BOOK') {
-      // Reset do book
       book.bids = {};
       book.asks = {};
       return;
@@ -267,12 +275,12 @@ class ProfitClient {
     const key = Math.round(price * 100);
 
     if (action === 'DELETE' || qty === 0) {
-      if (side === 'BUY')  delete book.bids[key];
-      else                 delete book.asks[key];
+      if (side === 'BUY') delete book.bids[key];
+      else                delete book.asks[key];
     } else {
       const entry = { price, qty, agent: msg.agent || 0 };
-      if (side === 'BUY')  book.bids[key] = entry;
-      else                 book.asks[key] = entry;
+      if (side === 'BUY') book.bids[key] = entry;
+      else                book.asks[key] = entry;
     }
 
     this._emitBook(sym, book, isWDO);
@@ -301,10 +309,10 @@ class ProfitClient {
     const isWDO = WDO_SYMBOLS.some(s => sym.includes(s));
     if (!isWDO) return;
 
-    this.lastWDO.auc_vol = msg.qty     || 0;
-    this.lastWDO.open    = msg.open    || 0;
-    this.lastWDO.high    = msg.high    || 0;
-    this.lastWDO.low     = msg.low     || 0;
+    this.lastWDO.auc_vol = msg.qty  || 0;
+    this.lastWDO.open    = msg.open || 0;
+    this.lastWDO.high    = msg.high || 0;
+    this.lastWDO.low     = msg.low  || 0;
   }
 
   // ── Emit Book ─────────────────────────────────────────────────────────────
