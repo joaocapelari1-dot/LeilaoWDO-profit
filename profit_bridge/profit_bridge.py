@@ -1,330 +1,176 @@
 """
-ProfitBridge v1.0
-Conecta à ProfitDLL da Nelogica e expõe dados via WebSocket local.
+ProfitBridge v2.0 — Arquitetura Invertida
+VPS conecta no Railway (outbound) eliminando necessidade de portas inbound.
 
 Fluxo:
-  ProfitDLL → callbacks → fila → WebSocket ws://0.0.0.0:8787 → profit_client.js (Node.js)
-
-Requisitos:
-  pip install websockets
-  Windows 64-bit
-  ProfitDLL.dll na pasta Win64/
-
-Uso:
-  python profit_bridge.py
-
-Variáveis de ambiente (.env ou sistema):
-  PROFIT_ACTIVATION_KEY  = chave de ativação fornecida pela Nelogica
-  PROFIT_USERNAME        = usuário da conta Nelogica
-  PROFIT_PASSWORD        = senha da conta Nelogica
-  PROFIT_WS_PORT         = porta WebSocket (default: 8787)
-  PROFIT_DLL_PATH        = caminho para ProfitDLL.dll (default: ./Win64/ProfitDLL.dll)
-  SYMBOLS                = símbolos a assinar (default: WDOFUT,DOLFUT,WINFUT,INDFUT)
+  ProfitDLL -> callbacks -> fila -> WebSocket CLIENT -> Railway /bridge
 """
-
-import asyncio
-import json
-import os
-import queue
-import threading
-import time
-import logging
-from ctypes import WinDLL, WINFUNCTYPE, c_int, c_wchar_p, c_double, c_longlong, byref
-from datetime import datetime, timezone, timedelta
+import asyncio, ctypes, json, logging, os, queue, threading, time
+from datetime import datetime
 from pathlib import Path
+import websockets
+from dotenv import load_dotenv
 
-try:
-    import websockets
-except ImportError:
-    print("ERRO: pip install websockets")
-    raise
+load_dotenv()
 
-# ── Configuração ──────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%H:%M:%S'
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("C:\\ProfitBridge\\logs\\bridge.log", encoding="utf-8")
+    ]
 )
-log = logging.getLogger('ProfitBridge')
+log = logging.getLogger("ProfitBridge")
 
-ACTIVATION_KEY = os.getenv('PROFIT_ACTIVATION_KEY', '')
-USERNAME       = os.getenv('PROFIT_USERNAME', '')
-PASSWORD       = os.getenv('PROFIT_PASSWORD', '')
-WS_PORT        = int(os.getenv('PROFIT_WS_PORT', '8787'))
-DLL_PATH       = os.getenv('PROFIT_DLL_PATH', r'.\Win64\ProfitDLL.dll')
-SYMBOLS_RAW    = os.getenv('SYMBOLS', 'WDOFUT,DOLFUT,WINFUT,INDFUT')
-SYMBOLS        = [s.strip() for s in SYMBOLS_RAW.split(',')]
+ACTIVATION_KEY  = os.getenv("PROFIT_ACTIVATION_KEY", "")
+USERNAME        = os.getenv("PROFIT_USERNAME", "")
+PASSWORD        = os.getenv("PROFIT_PASSWORD", "")
+DLL_PATH        = os.getenv("PROFIT_DLL_PATH", r"C:\ProfitBridge\Win64\ProfitDLL.dll")
+SYMBOLS         = [s.strip() for s in os.getenv("SYMBOLS", "WDOFUT,DOLFUT,WINFUT,INDFUT").split(",")]
+RAILWAY_WS_URL  = os.getenv("RAILWAY_WS_URL", "wss://leilaowdo-profit-production.up.railway.app/bridge")
+BRIDGE_SECRET   = os.getenv("BRIDGE_SECRET", "321Angelin@@")
+EXCHANGE_BMF    = "F"
 
-# ── Constantes DLL ───────────────────────────────────────────────────────────
-CONNECTION_STATE_LOGIN        = 0
-CONNECTION_STATE_ROTEAMENTO   = 1
-CONNECTION_STATE_MARKET_DATA  = 2
-CONNECTION_STATE_MARKET_LOGIN = 3
+event_queue = queue.Queue(maxsize=10000)
+dll_ready   = threading.Event()
+_cb_refs    = {}
 
-LOGIN_CONNECTED           = 0
-MARKET_CONNECTED          = 4
-CONNECTION_ACTIVATE_VALID = 0
+class TAssetIDRec(ctypes.Structure):
+    _fields_ = [("pwcTicker", ctypes.c_wchar_p), ("pwcBolsa", ctypes.c_wchar_p), ("nFeed", ctypes.c_int)]
 
-# ── Estado global ────────────────────────────────────────────────────────────
-msg_queue    = queue.Queue(maxsize=10000)  # fila produtor-consumidor
-clients      = set()                        # WebSocket clients conectados
-dll          = None
-connected    = {'login': False, 'market': False, 'ativacao': False}
-pronto       = threading.Event()            # sinaliza quando DLL está pronta
+TStateCallback             = ctypes.WINFUNCTYPE(None, ctypes.c_int, ctypes.c_int)
+TProgressCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_int)
+TNewTradeCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p, ctypes.c_uint32, ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char)
+TNewDailyCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int)
+TPriceBookCallback         = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_double, ctypes.c_void_p, ctypes.c_void_p)
+TOfferBookCallback         = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int64, ctypes.c_double, ctypes.c_char, ctypes.c_char, ctypes.c_char, ctypes.c_char, ctypes.c_char, ctypes.c_wchar_p, ctypes.c_void_p, ctypes.c_void_p)
+THistoryTradeCallback      = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p, ctypes.c_uint32, ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int)
+TTinyBookCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_double, ctypes.c_int, ctypes.c_int)
+TTheoreticalPriceCallback  = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_double, ctypes.c_int64)
+TChangeStateTickerCallback = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p, ctypes.c_int)
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-def brt_now():
-    return datetime.now(timezone(timedelta(hours=-3))).strftime('%H:%M:%S.%f')[:-3]
+def enqueue(e):
+    try: event_queue.put_nowait(e)
+    except queue.Full: pass
 
-def enfileirar(msg: dict):
-    """Enfileira mensagem para broadcast — chamado dos callbacks (não bloqueia)."""
-    try:
-        msg_queue.put_nowait(msg)
-    except queue.Full:
-        pass  # descarta se fila cheia
+def _cb_state(t, r):
+    ms = {0:"DISCONNECTED",1:"CONNECTING",2:"WAITING",3:"NOT_LOGGED",4:"CONNECTED",5:"PERF_WARNING",6:"PARTIAL"}
+    ls = {0:"CONNECTED",1:"INVALID",2:"INVALID_PASS",3:"BLOCKED",4:"EXPIRED",200:"UNKNOWN"}
+    ns = {0:"LOGIN",1:"ROUTING",2:"MARKET_DATA",3:"MARKET_LOGIN"}
+    tn = ns.get(t, str(t))
+    rn = (ms if t == 2 else ls).get(r, str(r))
+    log.info(f"STATE [{tn}] -> {rn}")
+    if t == 2 and r == 4: dll_ready.set()
+    enqueue({"type":"connection_state","conn_type":tn,"result":rn,"timestamp":datetime.now().isoformat()})
 
-# ── Callbacks da ProfitDLL ───────────────────────────────────────────────────
+def _cb_trade(a, d, n, p, v, q, ba, sa, tt, e):
+    agg = {2:"BUY",3:"SELL",4:"AUCTION"}.get(tt)
+    enqueue({"type":"trade","ticker":a.pwcTicker,"price":p,"volume":v,"quantity":q,"buy_agent":ba,"sell_agent":sa,"trade_type":tt,"aggressor":agg,"timestamp":datetime.now().isoformat()})
 
-@WINFUNCTYPE(None, c_int, c_int)
-def state_callback(state_type, result):
-    """Chamado quando estado de conexão muda."""
-    if state_type == CONNECTION_STATE_LOGIN and result == LOGIN_CONNECTED:
-        connected['login'] = True
-        log.info('✅ Login conectado')
-    elif state_type == CONNECTION_STATE_MARKET_DATA and result == MARKET_CONNECTED:
-        connected['market'] = True
-        log.info('✅ Market Data conectado')
-    elif state_type == CONNECTION_STATE_MARKET_LOGIN and result == CONNECTION_ACTIVATE_VALID:
-        connected['ativacao'] = True
-        log.info('✅ Ativação válida')
+def _cb_theo(a, p, q):
+    log.info(f"THEO [{a.pwcTicker}] p={p} q={q}")
+    enqueue({"type":"theoretical_price","ticker":a.pwcTicker,"theoretical_price":p,"theoretical_qty":q,"timestamp":datetime.now().isoformat()})
 
-    # Quando tudo pronto → assina símbolos
-    if all(connected.values()) and not pronto.is_set():
-        pronto.set()
-        log.info(f'🟢 DLL pronta — assinando: {", ".join(SYMBOLS)}')
-        for sym in SYMBOLS:
-            dll.SubscribeTicker(c_wchar_p(sym))
-        log.info(f'✅ Assinado {len(SYMBOLS)} símbolos')
+def _cb_state_ticker(a, d, s):
+    names = {0:"OPENED",4:"AUCTIONED",6:"CLOSED",10:"PRE_CLOSING",13:"PRE_OPENING"}
+    sn = names.get(s, f"UNKNOWN_{s}")
+    log.info(f"TICKER [{a.pwcTicker}] -> {sn}")
+    enqueue({"type":"ticker_state","ticker":a.pwcTicker,"state":sn,"state_code":s,"in_auction":(s==4),"timestamp":datetime.now().isoformat()})
 
-    enfileirar({'type': 'connection_state', 'state_type': state_type, 'result': result, 'timestamp': int(time.time() * 1000)})
+def _cb_tiny(a, p, q, s):
+    enqueue({"type":"tiny_book","ticker":a.pwcTicker,"price":p,"quantity":q,"side":"BUY" if s==0 else "SELL","timestamp":datetime.now().isoformat()})
 
+def _cb_daily(a, d, o, h, l, c, v, *x):
+    enqueue({"type":"daily","ticker":a.pwcTicker,"open":o,"high":h,"low":l,"close":c,"volume":v,"timestamp":datetime.now().isoformat()})
 
-@WINFUNCTYPE(None, c_wchar_p, c_wchar_p, c_int, c_double, c_double,
-             c_double, c_double, c_int, c_double, c_double,
-             c_double, c_double, c_double, c_int)
-def new_trade_callback(symbol, date, trade_number, price, qty,
-                       buy_agent, sell_agent, trade_type, bid, ask,
-                       theor_price, theor_qty, surplus, surplus_side):
-    """Callback para cada negócio em tempo real (SQT/tape)."""
-    try:
-        side = 'buy' if surplus_side > 0 else ('sell' if surplus_side < 0 else 'balanced')
+def _cb_offer(a, act, pos, side, qty, ag, oid, p, hp, hq, hd, ho, ha, d, ps, pb):
+    acts = {0:"ADD",1:"EDIT",2:"DELETE",3:"DELETE_FROM",4:"FULL_BOOK"}
+    enqueue({"type":"offer_book","ticker":a.pwcTicker,"action":acts.get(act),"side":"BUY" if side==0 else "SELL","quantity":qty,"price":p if hp==b'\x01' else None,"timestamp":datetime.now().isoformat()})
 
-        tick = {
-            'type':        'tick',
-            'symbol':      symbol,
-            'timestamp':   int(time.time() * 1000),
-            'time_brt':    brt_now(),
-            'last':        float(price),
-            'qty':         int(qty),
-            'bid':         float(bid),
-            'ask':         float(ask),
-            'theor_price': float(theor_price),
-            'theor_qty':   int(theor_qty),
-            'surplus':     float(surplus),
-            'surplus_side': side,
-            'buy_agent':   int(buy_agent),
-            'sell_agent':  int(sell_agent),
-            'trade_type':  int(trade_type),
-        }
-        enfileirar(tick)
-    except Exception as e:
-        log.warning(f'new_trade_callback erro: {e}')
+def _cb_stub(*a): pass
 
+def init_dll(dll):
+    _cb_refs["s"]  = TStateCallback(_cb_state)
+    _cb_refs["t"]  = TNewTradeCallback(_cb_trade)
+    _cb_refs["d"]  = TNewDailyCallback(_cb_daily)
+    _cb_refs["pb"] = TPriceBookCallback(_cb_stub)
+    _cb_refs["ob"] = TOfferBookCallback(_cb_offer)
+    _cb_refs["ht"] = THistoryTradeCallback(_cb_stub)
+    _cb_refs["pr"] = TProgressCallback(_cb_stub)
+    _cb_refs["tb"] = TTinyBookCallback(_cb_tiny)
+    dll.DLLInitializeMarketLogin.restype  = ctypes.c_int
+    dll.DLLInitializeMarketLogin.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_wchar_p, TStateCallback, TNewTradeCallback, TNewDailyCallback, TPriceBookCallback, TOfferBookCallback, THistoryTradeCallback, TProgressCallback, TTinyBookCallback]
+    r = dll.DLLInitializeMarketLogin(ACTIVATION_KEY, USERNAME, PASSWORD, _cb_refs["s"], _cb_refs["t"], _cb_refs["d"], _cb_refs["pb"], _cb_refs["ob"], _cb_refs["ht"], _cb_refs["pr"], _cb_refs["tb"])
+    if r != 0: raise RuntimeError(f"DLL falhou: {r:#010x}")
+    log.info("DLL inicializada.")
 
-@WINFUNCTYPE(None, c_wchar_p, c_int, c_int, c_double, c_int, c_int)
-def offer_book_callback(symbol, position, side, price, qty, broker):
-    """Callback para cada entrada/atualização no Book L2 (BQT)."""
-    try:
-        book_entry = {
-            'type':     'book_entry',
-            'symbol':   symbol,
-            'timestamp': int(time.time() * 1000),
-            'position': int(position),
-            'side':     'bid' if side == 0 else 'ask',
-            'price':    float(price),
-            'qty':      int(qty),
-            'broker':   int(broker),
-        }
-        enfileirar(book_entry)
-    except Exception as e:
-        log.warning(f'offer_book_callback erro: {e}')
+def subscribe(dll):
+    _cb_refs["theo"] = TTheoreticalPriceCallback(_cb_theo)
+    _cb_refs["st"]   = TChangeStateTickerCallback(_cb_state_ticker)
+    dll.SetTheoreticalPriceCallback.restype  = ctypes.c_int
+    dll.SetTheoreticalPriceCallback.argtypes = [TTheoreticalPriceCallback]
+    dll.SetTheoreticalPriceCallback(_cb_refs["theo"])
+    dll.SetChangeStateTickerCallback.restype  = ctypes.c_int
+    dll.SetChangeStateTickerCallback.argtypes = [TChangeStateTickerCallback]
+    dll.SetChangeStateTickerCallback(_cb_refs["st"])
+    dll.SubscribeTicker.restype     = ctypes.c_int
+    dll.SubscribeTicker.argtypes    = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+    dll.SubscribeOfferBook.restype  = ctypes.c_int
+    dll.SubscribeOfferBook.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+    for s in SYMBOLS:
+        log.info(f"Subscribe [{s}] T={dll.SubscribeTicker(s, EXCHANGE_BMF)} O={dll.SubscribeOfferBook(s, EXCHANGE_BMF)}")
 
-
-@WINFUNCTYPE(None, c_wchar_p, c_int, c_double, c_int)
-def tiny_book_callback(symbol, side, price, qty):
-    """Callback para topo do book (bid/ask)."""
-    try:
-        enfileirar({
-            'type':     'tiny_book',
-            'symbol':   symbol,
-            'timestamp': int(time.time() * 1000),
-            'side':     'bid' if side == 0 else 'ask',
-            'price':    float(price),
-            'qty':      int(qty),
-        })
-    except Exception as e:
-        log.warning(f'tiny_book_callback erro: {e}')
-
-
-@WINFUNCTYPE(None, c_wchar_p, c_int, c_double, c_int)
-def price_book_callback(symbol, position, price, qty):
-    """Callback para Book de Preços agregado."""
-    try:
-        enfileirar({
-            'type':     'price_book',
-            'symbol':   symbol,
-            'timestamp': int(time.time() * 1000),
-            'position': int(position),
-            'price':    float(price),
-            'qty':      int(qty),
-        })
-    except Exception as e:
-        log.warning(f'price_book_callback erro: {e}')
-
-
-@WINFUNCTYPE(None, c_wchar_p, c_double, c_double, c_double,
-             c_double, c_double, c_double, c_int)
-def new_daily_callback(symbol, open_, high, low, close, qty, contracts):
-    """Callback para dados diários agregados."""
-    try:
-        enfileirar({
-            'type':      'daily',
-            'symbol':    symbol,
-            'timestamp': int(time.time() * 1000),
-            'open':      float(open_),
-            'high':      float(high),
-            'low':       float(low),
-            'close':     float(close),
-            'qty':       float(qty),
-            'contracts': int(contracts),
-        })
-    except Exception as e:
-        log.warning(f'new_daily_callback erro: {e}')
-
-
-@WINFUNCTYPE(None, c_int, c_int)
-def progress_callback(asset_id, progress):
-    """Callback de progresso de requisições históricas."""
-    pass  # não usado no bridge
-
-
-# ── Inicialização DLL ─────────────────────────────────────────────────────────
-def init_dll():
-    global dll
-    dll_path = Path(DLL_PATH)
-    if not dll_path.exists():
-        raise FileNotFoundError(f'ProfitDLL.dll não encontrada em: {dll_path.resolve()}')
-
-    log.info(f'Carregando DLL: {dll_path.resolve()}')
-    dll = WinDLL(str(dll_path))
-
-    log.info(f'Inicializando Market Data — usuário: {USERNAME}')
-    result = dll.DLLInitializeMarketLogin(
-        c_wchar_p(ACTIVATION_KEY),
-        c_wchar_p(USERNAME),
-        c_wchar_p(PASSWORD),
-        state_callback,
-        new_trade_callback,
-        new_daily_callback,
-        price_book_callback,
-        offer_book_callback,
-        None,            # history_trade_callback (não usado)
-        progress_callback,
-        tiny_book_callback,
-    )
-
-    if result != 0:
-        raise RuntimeError(f'DLLInitializeMarketLogin retornou: {result}')
-
-    log.info('DLL inicializada — aguardando conexão...')
-
-    # Aguarda conexão completa (timeout 30s)
-    if not pronto.wait(timeout=30):
-        raise TimeoutError('DLL não conectou em 30 segundos')
-
-
-# ── WebSocket Server ──────────────────────────────────────────────────────────
-async def ws_handler(websocket):
-    """Handler para cada cliente WebSocket conectado."""
-    clients.add(websocket)
-    addr = websocket.remote_address
-    log.info(f'Cliente conectado: {addr} (total: {len(clients)})')
-
-    # Envia status inicial
-    await websocket.send(json.dumps({
-        'type': 'connected',
-        'symbols': SYMBOLS,
-        'timestamp': int(time.time() * 1000),
-    }))
-
-    try:
-        await websocket.wait_closed()
-    finally:
-        clients.discard(websocket)
-        log.info(f'Cliente desconectado: {addr} (total: {len(clients)})')
-
-
-async def broadcast_loop():
-    """Loop que consome a fila e faz broadcast para todos os clientes."""
-    loop = asyncio.get_event_loop()
-
-    def get_msgs():
-        msgs = []
-        try:
-            while True:
-                msgs.append(msg_queue.get_nowait())
-        except queue.Empty:
-            pass
-        return msgs
-
+async def railway_client():
     while True:
-        await asyncio.sleep(0.001)  # 1ms polling
+        try:
+            log.info(f"Conectando no Railway: {RAILWAY_WS_URL}")
+            async with websockets.connect(
+                RAILWAY_WS_URL,
+                extra_headers={"X-Bridge-Secret": BRIDGE_SECRET},
+                ping_interval=10,
+                ping_timeout=20
+            ) as ws:
+                log.info("CONECTADO no Railway via /bridge!")
+                await ws.send(json.dumps({"type":"bridge_auth","secret":BRIDGE_SECRET,"symbols":SYMBOLS}))
+                while True:
+                    events = []
+                    try:
+                        for _ in range(50): events.append(event_queue.get_nowait())
+                    except queue.Empty: pass
+                    if events:
+                        await ws.send(json.dumps(events) if len(events) > 1 else json.dumps(events[0]))
+                    await asyncio.sleep(0.01)
+        except Exception as e:
+            log.error(f"Desconectado: {e} — reconectando em 5s")
+            await asyncio.sleep(5)
 
-        msgs = await loop.run_in_executor(None, get_msgs)
-        if not msgs or not clients:
-            continue
-
-        payload = json.dumps(msgs if len(msgs) > 1 else msgs[0])
-        dead = set()
-        for ws in clients.copy():
-            try:
-                await ws.send(payload)
-            except Exception:
-                dead.add(ws)
-        clients -= dead
-
-
-async def main():
-    log.info(f'🚀 ProfitBridge iniciando — WebSocket ws://0.0.0.0:{WS_PORT}')
-
-    # Inicializa DLL em thread separada (bloqueia até conectar)
-    init_thread = threading.Thread(target=init_dll, daemon=True)
-    init_thread.start()
-    init_thread.join()
-
-    log.info(f'🟢 ProfitBridge pronto — {len(SYMBOLS)} símbolos ativos')
-
-    # Inicia WebSocket server + broadcast loop
-    async with websockets.serve(ws_handler, '0.0.0.0', WS_PORT):
-        log.info(f'WebSocket ouvindo em ws://0.0.0.0:{WS_PORT}')
-        await broadcast_loop()
-
-
-if __name__ == '__main__':
+def dll_thread(dll):
     try:
-        asyncio.run(main())
+        init_dll(dll)
+        if not dll_ready.wait(timeout=60):
+            log.error("Timeout Market Data")
+            return
+        time.sleep(1)
+        subscribe(dll)
+    except Exception as e:
+        log.exception(f"Erro DLL: {e}")
+
+if __name__ == "__main__":
+    log.info("=== ProfitBridge v2.0 Invertido ===")
+    log.info(f"Railway: {RAILWAY_WS_URL}")
+    if not all([ACTIVATION_KEY, USERNAME, PASSWORD]):
+        log.error("Credenciais faltando no .env")
+        exit(1)
+    p = Path(DLL_PATH)
+    if not p.exists():
+        log.error(f"DLL nao encontrada: {p}")
+        exit(1)
+    dll = ctypes.CDLL(str(p))
+    threading.Thread(target=dll_thread, args=(dll,), daemon=True).start()
+    try:
+        asyncio.run(railway_client())
     except KeyboardInterrupt:
-        log.info('Encerrando ProfitBridge...')
-        if dll:
-            dll.DLLFinalize()
-        log.info('DLL finalizada. Até logo.')
+        log.info("Encerrando...")
+        try: dll.DLLFinalize()
+        except: pass
