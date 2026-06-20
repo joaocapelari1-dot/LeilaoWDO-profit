@@ -1698,9 +1698,14 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
   })
 
   const now = Date.now()
-  const hora = new Date().getHours()
-  const min  = new Date().getMinutes()
-  const horaAtual = hora + min / 60
+  // Horário BRT (UTC-3) e verificação de dia útil
+  const _agora   = new Date()
+  const _brt     = new Date(_agora.getTime() - 3 * 60 * 60 * 1000)
+  const _diaSem  = _brt.getUTCDay() // 0=dom, 6=sab
+  const _diaUtil = _diaSem >= 1 && _diaSem <= 5
+  const hora     = _brt.getUTCHours()
+  const min      = _brt.getUTCMinutes()
+  const horaAtual = _diaUtil ? (hora + min / 60) : -1 // -1 = fim de semana → tudo standby
 
   // Verifica status baseado nos dados recebidos
   useEffect(() => {
