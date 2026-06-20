@@ -207,6 +207,28 @@ function createServer(bus, engines = {}) {
   // ── HTTP Server ───────────────────────────────────────────────
   const httpServer = http.createServer(app);
 
+
+  // ── Bridge Endpoint /bridge — VPS conecta aqui (arquitetura invertida) ────
+  const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '321Angelin@@';
+  const wssBridge = new WebSocket.Server({ server: httpServer, path: '/bridge' });
+  wssBridge.on('connection', (ws, req) => {
+    const secret = req.headers['x-bridge-secret'];
+    if (secret !== BRIDGE_SECRET) { log.warn('Bridge: secret invalido'); ws.close(); return; }
+    log.info('✅ ProfitBridge VPS conectado via /bridge!');
+    ws.on('message', (data) => {
+      try {
+        const msgs = JSON.parse(data);
+        const events = Array.isArray(msgs) ? msgs : [msgs];
+        events.forEach(event => {
+          if (!event || !event.type || event.type === 'bridge_auth') return;
+          bus.emit('profit:' + event.type, event);
+        });
+      } catch(e) { log.warn('Bridge parse error: ' + e.message); }
+    });
+    ws.on('close', () => log.warn('ProfitBridge VPS desconectado'));
+    ws.on('error', (e) => log.warn('Bridge error: ' + e.message));
+  });
+
   // ── WebSocket Server ──────────────────────────────────────────
   const wss = new WebSocket.Server({ server: httpServer, path: '/ws' });
   const clients = new Set();
