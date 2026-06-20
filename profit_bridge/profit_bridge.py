@@ -121,6 +121,12 @@ def subscribe(dll):
     for s in SYMBOLS:
         log.info(f"Subscribe [{s}] T={dll.SubscribeTicker(s, EXCHANGE_BMF)} O={dll.SubscribeOfferBook(s, EXCHANGE_BMF)}")
 
+import math
+
+def safe_json(obj):
+    """Serializa JSON tratando -inf, inf, nan como null"""
+    return json.dumps(obj, default=lambda x: None if isinstance(x, float) and not math.isfinite(x) else x)
+
 async def railway_client():
     while True:
         try:
@@ -139,7 +145,7 @@ async def railway_client():
                         for _ in range(50): events.append(event_queue.get_nowait())
                     except queue.Empty: pass
                     if events:
-                        await ws.send(json.dumps(events) if len(events) > 1 else json.dumps(events[0]))
+                        await ws.send(safe_json(events) if len(events) > 1 else safe_json(events[0]))
                     await asyncio.sleep(0.01)
         except Exception as e:
             log.error(f"Desconectado: {e} — reconectando em 5s")
