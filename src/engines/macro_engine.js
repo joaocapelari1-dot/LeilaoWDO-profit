@@ -64,8 +64,7 @@ const SCHEDULE = {
   ULTRA_MIN:    0,
 };
 
-const INTERVAL_NORMAL  = 2 * 60 * 1000; // 2min — Yahoo Finance (gratuito, sem limite)
-const INTERVAL_CRITICO = 15 * 1000;        // 15s  — Twelve Data apenas 8h59→9h05 (~24 calls/dia)
+const INTERVAL_NORMAL  = 5 * 60 * 1000; // 5min — Twelve Data (~36 calls/dia, bem abaixo do limite 800)
 const INTERVAL_FAST   = 2000;    // 2s
 const INTERVAL_ULTRA  = 500;     // 500ms
 
@@ -157,23 +156,10 @@ class MacroEngine {
     // (múltiplos boots em sequência não chamam a API simultaneamente)
     this.log.info('Macro: aguardando 90s antes da 1ª call Twelve Data...');
     setTimeout(() => {
-      if (!this.running) return;
-      // Usar Yahoo Finance até 8h58, depois Twelve Data apenas 8h59→9h05
-      this._fetchYahoo();
-      this.timer = setInterval(() => {
-        const now = new Date();
-        const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-        const h = brt.getUTCHours();
-        const m = brt.getUTCMinutes();
-        const mins = h * 60 + m;
-        if (mins >= 8 * 60 + 59 && mins <= 9 * 60 + 5) {
-          // 8h59→9h05: Twelve Data (dados precisos para leilão)
-          this._fetch();
-        } else {
-          // 8h45→8h58 e demais: Yahoo Finance (gratuito)
-          this._fetchYahoo();
-        }
-      }, INTERVAL_NORMAL);
+      if (this.running) {
+        this._fetch();
+        this.timer = setInterval(() => this._fetch(), INTERVAL_NORMAL);
+      }
     }, 90000);
   }
 
@@ -223,49 +209,6 @@ class MacroEngine {
 
   // ── Twelve Data (todos os ativos) ──────────────────────
   // 800 calls/dia gratuito — não bloqueia datacenter
-
-  // ── Yahoo Finance (gratuito, sem limite de créditos) ──────────
-  async _fetchYahoo() {
-    try {
-      const symbols = ['SPY','%5EVIX','BRL%3DX','GC%3DF','CL%3DF'].join('%2C');
-      const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + 'SPY?interval=1m&range=1d';
-      // Buscar cada símbolo
-      const fetch = (sym) => new Promise((resolve) => {
-        const https = require('https');
-        const path = '/v8/finance/chart/' + sym + '?interval=1m&range=1d';
-        const opts = { hostname: 'query1.finance.yahoo.com', path, method: 'GET',
-          headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 5000 };
-        let d = '';
-        const req = https.request(opts, r => { r.on('data', c => d += c); r.on('end', () => {
-          try {
-            const j = JSON.parse(d);
-            const price = j?.chart?.result?.[0]?.meta?.regularMarketPrice;
-            resolve(price || null);
-          } catch { resolve(null); }
-        }); });
-        req.on('error', () => resolve(null));
-        req.on('timeout', () => { req.destroy(); resolve(null); });
-        req.end();
-      });
-
-      const [spy, vix, usdbrl, gold, oil] = await Promise.all([
-        fetch('SPY'), fetch('%5EVIX'), fetch('BRL%3DX'), fetch('GC%3DF'), fetch('CL%3DF')
-      ]);
-
-      if (spy) this.snapshot.SP500_FUT = { price: spy, change: 0 };
-      if (vix) this.snapshot.VIX       = { price: vix, change: 0 };
-      if (usdbrl) this.snapshot.USDBRL = { price: usdbrl, change: 0 };
-      if (gold) this.snapshot.GOLD     = { price: gold, change: 0 };
-      if (oil)  this.snapshot.OIL_WTI  = { price: oil, change: 0 };
-
-      this.snapshot.fetchedAt  = Date.now();
-      this.snapshot.source     = 'yahoo';
-      this.log.info('Macro[Yahoo]: SPY=' + (spy||'?') + ' VIX=' + (vix||'?') + ' USDBRL=' + (usdbrl||'?'));
-      this.bus.emit('macro:update', this.snapshot);
-    } catch(e) {
-      this.log.warn('Yahoo Finance erro: ' + e.message);
-    }
-  }
 
   _fetchAlphaVantage() {
     // Migrado para Twelve Data — Alpha Vantage tem limite 25 calls/dia
