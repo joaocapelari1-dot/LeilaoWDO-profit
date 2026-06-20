@@ -235,7 +235,8 @@ function createServer(bus, engines = {}) {
       log.info('✅ ProfitBridge VPS conectado via /ws!');
       ws.on('message', (data) => {
         try {
-          const msgs = JSON.parse(data);
+          const cleaned = data.toString().replace(/-Infinity/g, "null").replace(/\bInfinity\b/g, "null").replace(/\bNaN\b/g, "null");
+          const msgs = JSON.parse(cleaned);
           const events = Array.isArray(msgs) ? msgs : [msgs];
           events.forEach(event => {
             if (!event || !event.type || event.type === 'bridge_auth') return;
