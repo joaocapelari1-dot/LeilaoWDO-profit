@@ -98,6 +98,8 @@ export function useWDOSocket(token) {
               setAuction({ to: msg.data?.auction?.state, from: null });
               if (msg.data?.macro)    setMacro(msg.data.macro);
               if (msg.data?.adaptive) setAdaptive(prev => ({ ...prev, ...msg.data.adaptive }));
+              if (msg.data?.gap)       setContext(prev => ({ ...prev, gap: msg.data.gap }));
+              if (msg.data?.calendario) setContext(prev => ({ ...prev, calendario: msg.data.calendario }));
               break
             case 'signal':        setSignal(msg.data);   break
             case 'ai_analise':    setAI(msg.data);        break
