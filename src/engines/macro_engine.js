@@ -94,7 +94,10 @@ class MacroEngine {
     const start845 = 8 * 60 + 45;
     const close18  = 18 * 60;
 
-    if (mins >= start845 && mins < close18) {
+    const diaSem = brt.getUTCDay(); // 0=dom, 6=sab
+    const diaUtil = diaSem >= 1 && diaSem <= 5;
+
+    if (diaUtil && mins >= start845 && mins < close18) {
       this.log.info('Macro Engine iniciado dentro da janela — ligando imediatamente');
     // Buscar range CME madrugada às 8h45
     const brtNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
