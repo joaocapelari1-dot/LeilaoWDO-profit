@@ -34,7 +34,7 @@ function LeilaoStatus({ auctionState, connected }) {
   const _diaUtil = _dia >= 1 && _dia <= 5
   const _mercadoAberto = _diaUtil && _hora >= 9.0 && _hora < 18.0
   const color  = online ? '#22c55e' : _mercadoAberto ? '#f59e0b' : '#ef4444'
-  const label  = online ? 'LEILÃO ONLINE' : _mercadoAberto && state === 'CONTINUOUS' ? 'MERCADO ABERTO' : state === 'CLOSING' ? 'FECHAMENTO' : 'AGUARDANDO'
+  const label  = online ? 'LEILÃO ONLINE' : (!_diaUtil || !_mercadoAberto) ? 'AGUARDANDO' : state === 'CONTINUOUS' ? 'MERCADO ABERTO' : state === 'CLOSING' ? 'FECHAMENTO' : 'AGUARDANDO'
   return (
     <div style={{ display:'flex', alignItems:'center', gap:6, padding:'3px 10px', background:`${color}15`, border:`1px solid ${color}40`, borderRadius:20 }}>
       <div style={{ width:7, height:7, borderRadius:'50%', background:color, boxShadow:`0 0 6px ${color}`, animation: online ? 'pulse 1.5s infinite' : 'none' }} />
