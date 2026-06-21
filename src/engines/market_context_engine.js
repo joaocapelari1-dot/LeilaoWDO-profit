@@ -63,11 +63,34 @@ class MarketContextEngine {
   }
 
   // ── 1. GAP OVERNIGHT ─────────────────────────────────────────
+  async _fetchGapFromAwesome() {
+    return new Promise((resolve) => {
+      const https = require('https');
+      const req = https.get('https://economia.awesomeapi.com.br/json/daily/USD-BRL/2', (res) => {
+        let body = '';
+        res.on('data', c => body += c);
+        res.on('end', () => {
+          try {
+            const arr = JSON.parse(body);
+            if (arr && arr.length >= 2) {
+              resolve(parseFloat(arr[1].bid)); // fechamento de ontem
+            } else if (arr && arr.length === 1) {
+              resolve(parseFloat(arr[0].bid));
+            } else resolve(null);
+          } catch { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+    });
+  }
+
   async _fetchGap() {
     try {
-      // Usar snapshot do MacroEngine (bus) via lastMacro — evita chamar Yahoo
+      // Buscar fechamento de ontem via AwesomeAPI (mais confiável que Twelve Data)
+      const prevCloseAwesome = await this._fetchGapFromAwesome();
       const snap = this._macroSnap;
-      const prevClose  = snap?.usdbrl?.prevClose;
+      const prevClose  = prevCloseAwesome || snap?.usdbrl?.prevClose;
       const currentRef = this.lastPrice || snap?.usdbrl?.price;
 
       if (!prevClose || !currentRef) return;
