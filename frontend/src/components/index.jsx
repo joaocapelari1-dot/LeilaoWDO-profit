@@ -2082,22 +2082,26 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
             <div style={{ fontSize:8, color:C.dim, letterSpacing:1 }}>AMPLITUDE</div>
           </div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
-            {/* Barra confiança */}
+            {/* Barra confiança com direção */}
             <div style={{ flex:1 }}>
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
                 <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
+                  color: aiAnalysis?.direcao === 'buy' ? C.green : aiAnalysis?.direcao === 'sell' ? C.red : aiAnalysis?.confianca >= 0.85 ? C.green : aiAnalysis?.confianca >= 0.6 ? C.gold : C.muted }}>
+                  {aiAnalysis?.direcao === 'buy' ? '▲ COMPRA' : aiAnalysis?.direcao === 'sell' ? '▼ VENDA' : '—'}
+                </span>
+                <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
                   color: aiAnalysis?.confianca >= 0.85 ? C.green : aiAnalysis?.confianca >= 0.6 ? C.gold : C.red }}>
                   {aiAnalysis?.confianca ? Math.round(aiAnalysis.confianca*100)+'%' : '—'}
-                </span>
-                <span style={{ fontSize:8, color: aiAnalysis?.confianca >= 0.85 ? C.green : C.muted }}>
-                  {aiAnalysis?.confianca >= 0.85 ? '✓ OPERA' : aiAnalysis?.confianca > 0 ? 'aguard.' : '—'}
                 </span>
               </div>
               <div style={{ height:4, background:C.border, borderRadius:2, overflow:'hidden' }}>
                 <div style={{ height:'100%', borderRadius:2, transition:'width 0.5s',
                   width: aiAnalysis?.confianca ? Math.round(aiAnalysis.confianca*100)+'%' : '0%',
-                  background: aiAnalysis?.confianca >= 0.85 ? C.green : aiAnalysis?.confianca >= 0.6 ? C.gold : C.red
+                  background: aiAnalysis?.direcao === 'buy' ? C.green : aiAnalysis?.direcao === 'sell' ? C.red : aiAnalysis?.confianca >= 0.85 ? C.green : C.gold
                 }} />
+              </div>
+              <div style={{ fontSize:8, color:C.muted, marginTop:2 }}>
+                {aiAnalysis?.confianca >= 0.85 ? '✓ OPERARIA' : aiAnalysis?.confianca > 0 ? 'aguardando...' : ''}
               </div>
             </div>
             {/* Barra amplitude */}
