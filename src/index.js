@@ -19,6 +19,7 @@ if (isMainThread) {
   log.info('═══════════════════════════════════════════════');
 
   const bus = new EventBus();
+  global.__bus = bus; // exposto para testes via Railway Console
 
   // Inicia servidor HTTP/WS imediatamente
   let _workerRef = null;
