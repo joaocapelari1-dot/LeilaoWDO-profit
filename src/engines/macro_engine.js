@@ -263,33 +263,9 @@ class MacroEngine {
       };
     };
 
-    // Fetch ouro via AwesomeAPI (independente do Twelve Data)
-    const fetchGold = () => new Promise((resolve) => {
-      const https2 = require('https');
-      const req = https2.get('https://economia.awesomeapi.com.br/json/last/XAU-USD', (res) => {
-        let body = '';
-        res.on('data', c => body += c);
-        res.on('end', () => {
-          try {
-            const d = JSON.parse(body);
-            const g = d.XAUUSD;
-            if (g && g.bid) {
-              const price = parseFloat(g.bid);
-              const prev  = parseFloat(g.pctChange ? price / (1 + parseFloat(g.pctChange)/100) : price);
-              resolve({ price, prevClose: prev, change: price - prev, changePct: parseFloat(g.pctChange || 0) });
-            } else resolve(null);
-          } catch { resolve(null); }
-        });
-      });
-      req.on('error', () => resolve(null));
-      req.setTimeout(5000, () => { req.destroy(); resolve(null); });
-    });
-
     // 1 única call com 7 símbolos = 7 créditos (limite Basic = 8/min)
-    return Promise.all([
-      fetchJSON('/quote?symbol=SPY,VIXY,UUP,USO,EWZ,TLT,USD%2FBRL&apikey=' + TD_KEY),
-      fetchGold()
-    ]).then(([batch, goldData]) => {
+    return fetchJSON('/quote?symbol=SPY,VIXY,UUP,USO,EWZ,TLT,USD%2FBRL&apikey=' + TD_KEY)
+    .then((batch) => {
       const result = {};
       if (!batch || batch.code) {
         this.log.warn('Twelve Data batch erro: ' + JSON.stringify(batch || {}).slice(0,150));
@@ -308,7 +284,6 @@ class MacroEngine {
         const v = mk(batch[sym]);
         if (v) result[key] = { key, ...v };
       }
-      if (goldData) result['GOLD'] = { key: 'GOLD', ...goldData };
       return result;
     });
   }
@@ -329,7 +304,7 @@ class MacroEngine {
     const cme    = this._calcCMESpread(usdbrl);
     const bias   = this._calcMacroBias({ sp500, nasdaq: null, vix, dxy, usdbrl, cip, cme });
     return {
-      sp500, vix, dxy, oilWTI, usdbrl, ibov, gold: mk(raw.GOLD),
+      sp500, vix, dxy, oilWTI, usdbrl, ibov, gold: null,
       nasdaq: null, dow: null, oilBrent: null,
       treasury10y: tnx, treasury3m: null, yieldCurve: null,
       cip, cme,
