@@ -112,12 +112,17 @@ class ClaudeAIEngine {
       return;
     }
 
-    // Calcular ms até 8h55 BRT (BRT = UTC-3)
+    // Calcular ms até 8h55 BRT (BRT = UTC-3) — apenas dias úteis (seg-sex)
     const alvo = new Date(now);
     alvo.setUTCHours(11, 55, 0, 0); // 8h55 BRT = 11h55 UTC
     let ms = alvo - now;
     if (ms <= 0) {
-      // Já passou hoje → agenda para amanhã às 8h55
+      // Já passou hoje → agenda para o próximo dia
+      alvo.setUTCDate(alvo.getUTCDate() + 1);
+      ms = alvo - now;
+    }
+    // Pular fins de semana
+    while (alvo.getUTCDay() === 0 || alvo.getUTCDay() === 6) {
       alvo.setUTCDate(alvo.getUTCDate() + 1);
       ms = alvo - now;
     }
