@@ -101,6 +101,9 @@ export function useWDOSocket(token) {
               break
             case 'signal':        setSignal(msg.data);   break
             case 'ai_analise':    setAI(msg.data);        break
+            case 'iceberg':       setFeatures(prev => prev ? { ...prev, iceberg: msg.data } : { iceberg: msg.data }); break
+            case 'risk_confianca': break // usado internamente pelo risk engine
+            case 'close':         setFills(prev => [{ ...msg.data, tipo: 'close' }, ...prev].slice(0, 20)); break
             case 'risk_approved':
             case 'risk_rejected': setRisk({ ...msg.data, type: msg.type }); break
             case 'risk_snapshot': setSnapshots(prev => [...prev.slice(-5), msg.data]); break
