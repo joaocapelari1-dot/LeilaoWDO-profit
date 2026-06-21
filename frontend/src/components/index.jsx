@@ -713,7 +713,7 @@ export function SuperDOM({ book, features, levels = 80 }) {
     <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden', display:'flex', flexDirection:'column', height:'100%' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 8px', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
         <span style={{ fontSize:9, color:C.gold, letterSpacing:1, fontFamily:'monospace' }}>SUPER DOM · WDO MINI</span>
-        <span style={{ fontSize:9, color:C.muted, fontFamily:'monospace' }}>{book?.symbol || 'WDON26'}</span>
+        <span style={{ fontSize:9, color:C.muted, fontFamily:'monospace' }}>{book?.symbol || 'WDOLN26'}</span>
       </div>
       <div style={{ display:'flex', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
         <div style={{ flex:1, padding:'4px 6px', fontSize:9, color:C.green }}>COMPRA</div>
@@ -817,7 +817,7 @@ export function SuperDOMDOL({ dolFeatures, levels = 80 }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 10px', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
         <div>
           <span style={{ fontSize:9, color:C.gold, letterSpacing:1 }}>SUPER DOM · DOL CHEIO</span>
-          <span style={{ fontSize:8, color:C.muted, fontFamily:'monospace', marginLeft:8 }}>{book?.symbol || 'DOLQ26'}</span>
+          <span style={{ fontSize:8, color:C.muted, fontFamily:'monospace', marginLeft:8 }}>{book?.symbol || 'DOLN26'}</span>
         </div>
         <span style={{ fontSize:9, color:C.text, fontFamily:'monospace' }}>{lastPrice?.toFixed(2)}</span>
       </div>
