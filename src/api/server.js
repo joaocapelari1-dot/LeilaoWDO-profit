@@ -123,7 +123,7 @@ function createServer(bus, engines = {}) {
   });
 
   // ── DEBUG: simular leilão (remover após testes) ──────────
-  app.post('/api/debug/simular-leilao', authMiddleware, (req, res) => {
+  app.post('/api/debug/simular-leilao', (req, res) => { // sem auth — apenas debug
     const { phase } = req.body;
     if (!['pre_open','auction','continuous'].includes(phase)) {
       return res.json({ ok: false, error: 'phase inválida' });
