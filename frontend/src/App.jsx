@@ -58,7 +58,6 @@ function MercadoMundialPanel({ macro, tick, dolFeatures }) {
     { label:'VIX',       val: macro?.vix?.price,         chg: macro?.vix?.changePct,       inv: true    },
     { label:'S&P 500',   val: macro?.sp500?.price,       chg: macro?.sp500?.changePct,     inv: true    },
     { label:'PETRÓLEO',  val: macro?.oilWTI?.price,      chg: macro?.oilWTI?.changePct,    inv: true    },
-    { label:'IBOV',      val: macro?.ibov?.price,        chg: macro?.ibov?.changePct,      inv: false   },
   ]
 
   return (
