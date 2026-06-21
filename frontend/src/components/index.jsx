@@ -1999,7 +1999,7 @@ export function LoginScreen({ onLogin }) {
 }
 
 // ── Market Features Panel ─────────────────────────────────────
-export function MarketFeaturesPanel({ mktFeatures }) {
+export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
   if (!mktFeatures) return (
     <div style={{ background:C.panel, padding:'10px 12px', borderBottom:`1px solid ${C.border}` }}>
       <span style={{ fontSize:9, letterSpacing:2, color:C.muted, textTransform:'uppercase' }}>ANÁLISE ESPECIALIZADA</span>

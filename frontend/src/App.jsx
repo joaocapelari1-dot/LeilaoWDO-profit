@@ -183,7 +183,7 @@ export default function App() {
               <AIPanel aiAnalysis={socket.aiAnalysis} />
             </div>
             <div style={{ flex:1, display:'grid', gridTemplateColumns:'1fr 1fr', gridTemplateRows:'1fr 1fr 1fr', gap:1, overflow:'hidden' }}>
-              <MarketFeaturesPanel mktFeatures={socket.mktFeatures} />
+              <MarketFeaturesPanel mktFeatures={socket.mktFeatures} aiAnalysis={socket.aiAnalysis} />
               <CIPCMEPanel         macro={socket.macro} />
               <MarketContextPanel  ctx={socket.marketContext} />
               {/* CalibracaoPanel removido — calibração automática pelo AdaptiveLog */}
