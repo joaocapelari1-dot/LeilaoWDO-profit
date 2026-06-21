@@ -139,8 +139,49 @@ bus.on('claude:analise', (r) => {
   process.exit(0);
 });
 
-claude._analisar('test_pregao').catch(e => {
-  console.error('  ❌ Erro Claude:', e.message);
+// Chamar Claude diretamente sem filtro de horário
+const Anthropic = require('@anthropic-ai/sdk');
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const systemPrompt = claude._systemPrompt();
+const schema = claude._jsonSchema();
+const userPrompt = claude._buildPrompt('test_pregao');
+
+console.log('  Prompt enviado (primeiras 200 chars):', userPrompt.slice(0, 200) + '...');
+console.log('');
+
+client.messages.create({
+  model: 'claude-sonnet-4-5',
+  max_tokens: 1000,
+  system: systemPrompt + '\n\n' + schema,
+  messages: [{ role: 'user', content: userPrompt }],
+}).then(resp => {
+  const text = resp.content[0].text;
+  try {
+    const clean = text.replace(/```json|```/g, '').trim();
+    const r = JSON.parse(clean);
+    console.log('  ✅ RESPOSTA CLAUDE:');
+    console.log('  Veredito:   ', r.veredito);
+    console.log('  Direção:    ', r.direcao);
+    const conf = (r.confianca || 0);
+    console.log('  Confiança:  ', (conf * 100).toFixed(0) + '%', conf >= 0.85 ? '→ OPERARIA ✅' : '→ NAO_OPERAR');
+    console.log('  Reasoning:  ', r.reasoning);
+    console.log('  Alvo1:      ', r.alvo1_ticks, 'ticks @', r.alvo1_preco);
+    console.log('  Stop:       ', r.stop_ticks, 'ticks @', r.stop_preco);
+    console.log('  RR:         ', r.rr);
+    console.log('  Macro:      ', r.alinhamento_macro);
+    console.log('  DOL×WDO:    ', r.confluencia_dol_wdo);
+    console.log('  Iceberg:    ', r.iceberg_relevante ? '✅ RELEVANTE' : 'não relevante');
+    console.log('  Escora:     ', r.escora_detectada ? '⚠️ @ ' + r.escora_preco : 'não detectada');
+    console.log('  Tape:       ', r.leitura_tape);
+    console.log('  Risco:      ', r.risco_principal);
+    console.log('\n  → Teste 4: ✅ Claude funcionando');
+  } catch(e) {
+    console.log('  Raw:', text.slice(0, 500));
+  }
+  process.exit(0);
+}).catch(e => {
+  console.error('  ❌ Erro:', e.message);
   process.exit(1);
 });
 
