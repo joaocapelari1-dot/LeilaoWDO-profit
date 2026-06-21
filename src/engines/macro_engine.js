@@ -264,7 +264,7 @@ class MacroEngine {
     };
 
     // 1 única call com 8 símbolos = 8 créditos (limite Basic = 8/min)
-    return fetchJSON('/quote?symbol=SPY,VIXY,UUP,GLD,USO,EWZ,TLT,USD%2FBRL&apikey=' + TD_KEY)
+    return fetchJSON('/quote?symbol=SPY,VIXY,UUP,USO,EWZ,TLT,USD%2FBRL&apikey=' + TD_KEY)
     .then((batch) => {
       const result = {};
       if (!batch || batch.code) {
@@ -277,7 +277,7 @@ class MacroEngine {
         return result;
       }
       const MAP = [
-        ['SPY','SPY'],['VIXY','VIXY'],['UUP','UUP'],['GLD','GLD'],
+        ['SPY','SPY'],['VIXY','VIXY'],['UUP','UUP'],
         ['USO','USO'],['EWZ','EWZ'],['TLT','TLT'],['USD/BRL','USDBRL']
       ];
       for (const [sym, key] of MAP) {
@@ -296,7 +296,6 @@ class MacroEngine {
     const sp500  = mk(raw.SPY);
     const vix    = mk(raw.VIXY);
     const dxy    = mk(raw.UUP);
-    const gold   = mk(raw.GOLD);   // XAU/USD via Twelve Data
     const oilWTI = mk(raw.USO);
     const ibov   = mk(raw.EWZ);    // Brasil ETF proxy
     const usdbrl = mk(raw.USDBRL);
@@ -305,7 +304,7 @@ class MacroEngine {
     const cme    = this._calcCMESpread(usdbrl);
     const bias   = this._calcMacroBias({ sp500, nasdaq: null, vix, dxy, usdbrl, cip, cme });
     return {
-      sp500, vix, dxy, gold, oilWTI, usdbrl, ibov,
+      sp500, vix, dxy, oilWTI, usdbrl, ibov, gold: null,
       nasdaq: null, dow: null, oilBrent: null,
       treasury10y: tnx, treasury3m: null, yieldCurve: null,
       cip, cme,

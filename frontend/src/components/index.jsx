@@ -2078,7 +2078,7 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
         {/* Confiança IA + Amplitude */}
         <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:4, padding:'6px 8px', gridColumn:'span 2' }}>
           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-            <div style={{ fontSize:8, color:C.dim, letterSpacing:1 }}>CONFIANÇA IA</div>
+            <div style={{ fontSize:8, color:C.dim, letterSpacing:1 }}>ANÁLISE DE CONFIANÇA</div>
             <div style={{ fontSize:8, color:C.dim, letterSpacing:1 }}>AMPLITUDE</div>
           </div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
