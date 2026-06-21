@@ -340,8 +340,8 @@ REGRA FUNDAMENTAL: Escora detectada pelo volume acumulado no tape — não pelo 
   → -4 ticks no alvo
 - TAPE LIMPO: sem escoras, sem exaustão → alvo cheio conforme superávit
 
-Stop FIXO: 4 ticks (2pts) abaixo/acima da entrada.
-RR mínimo aceitável: 2.0 (Alvo1 ≥ 8 ticks se stop=4 ticks).
+Stop FIXO: 6 ticks (3pts) abaixo/acima da entrada.
+RR mínimo aceitável: 2.0 (Alvo1 ≥ 12 ticks se stop=6 ticks).
 
 Responda SOMENTE em JSON válido sem markdown.`;
   }
@@ -415,8 +415,6 @@ ${calTxt}
 
 ${mmTxt}
 
-MOTIVO DA ANÁLISE ORIGINAL: ${motivo}
-
 ${macroTxt}
 
 ${dolTxt}
@@ -461,7 +459,7 @@ Retorne o JSON conforme o schema definido nas instruções do sistema.`;
   "alvo1_ticks": 0,
   "alvo1_preco": 0.0,
   "alvo1_confianca": 0.0,
-  "stop_ticks": 4,
+  "stop_ticks": 6,
   "stop_preco": 0.0,
   "rr": 0.0,
   "amplitude_esperada": "X-Y pts",
@@ -503,7 +501,7 @@ Retorne o JSON conforme o schema definido nas instruções do sistema.`;
         alvo1Ticks:         parsed.alvo1_ticks          || 0,
         alvo1Preco:         parseFloat(parsed.alvo1_preco || 0),
         alvo1Confianca:     parseFloat(parsed.alvo1_confianca || 0),
-        stopTicks:          parsed.stop_ticks            || 4,
+        stopTicks:          parsed.stop_ticks            || 6,
         stopPreco:          parseFloat(parsed.stop_preco  || 0),
         rr:                 parseFloat(parsed.rr          || 0),
         amplitudeEsperada:  parsed.amplitude_esperada    || '',
