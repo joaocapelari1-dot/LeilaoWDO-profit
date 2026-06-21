@@ -2075,6 +2075,59 @@ export function MarketFeaturesPanel({ mktFeatures }) {
           </div>
         </div>
 
+        {/* Confiança IA + Amplitude */}
+        <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:4, padding:'6px 8px', gridColumn:'span 2' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+            <div style={{ fontSize:8, color:C.dim, letterSpacing:1 }}>CONFIANÇA IA</div>
+            <div style={{ fontSize:8, color:C.dim, letterSpacing:1 }}>AMPLITUDE</div>
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
+            {/* Barra confiança */}
+            <div style={{ flex:1 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
+                <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
+                  color: aiAnalysis?.confianca >= 0.85 ? C.green : aiAnalysis?.confianca >= 0.6 ? C.gold : C.red }}>
+                  {aiAnalysis?.confianca ? Math.round(aiAnalysis.confianca*100)+'%' : '—'}
+                </span>
+                <span style={{ fontSize:8, color: aiAnalysis?.confianca >= 0.85 ? C.green : C.muted }}>
+                  {aiAnalysis?.confianca >= 0.85 ? '✓ OPERA' : aiAnalysis?.confianca > 0 ? 'aguard.' : '—'}
+                </span>
+              </div>
+              <div style={{ height:4, background:C.border, borderRadius:2, overflow:'hidden' }}>
+                <div style={{ height:'100%', borderRadius:2, transition:'width 0.5s',
+                  width: aiAnalysis?.confianca ? Math.round(aiAnalysis.confianca*100)+'%' : '0%',
+                  background: aiAnalysis?.confianca >= 0.85 ? C.green : aiAnalysis?.confianca >= 0.6 ? C.gold : C.red
+                }} />
+              </div>
+            </div>
+            {/* Barra amplitude */}
+            <div style={{ flex:1 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
+                <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700, color:C.green }}>
+                  {aiAnalysis?.alvo1Ticks > 0 ? aiAnalysis.alvo1Ticks+'t' : '—'}
+                </span>
+                <span style={{ fontSize:8, color:C.muted }}>
+                  {aiAnalysis?.alvo1Ticks > 0 ? (aiAnalysis.alvo1Ticks/2).toFixed(0)+'pts' : '—'}
+                </span>
+              </div>
+              <div style={{ height:4, background:C.border, borderRadius:2, overflow:'hidden' }}>
+                <div style={{ height:'100%', borderRadius:2, transition:'width 0.5s',
+                  width: aiAnalysis?.alvo1Ticks > 0 ? Math.min(aiAnalysis.alvo1Ticks/20*100, 100)+'%' : '0%',
+                  background: aiAnalysis?.alvo1Ticks >= 12 ? C.green : aiAnalysis?.alvo1Ticks >= 8 ? C.gold : C.muted
+                }} />
+              </div>
+            </div>
+          </div>
+          {aiAnalysis?.alvo1Preco > 0 && (
+            <div style={{ display:'flex', justifyContent:'space-between', marginTop:4, fontSize:8, color:C.muted }}>
+              <span>entrada: {aiAnalysis?.precoEntrada?.toFixed(1) || '—'}</span>
+              <span style={{ color:C.green }}>alvo: {aiAnalysis.alvo1Preco?.toFixed(1)}</span>
+              <span style={{ color:C.red }}>stop: {aiAnalysis?.stopPreco?.toFixed(1) || '—'}</span>
+              <span style={{ color:C.gold }}>RR: {aiAnalysis?.rr?.toFixed(2) || '—'}</span>
+            </div>
+          )}
+        </div>
+
         {/* Spread WDO-DOL */}
         <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:4, padding:'6px 8px' }}>
           <div style={{ fontSize:8, color:C.dim, letterSpacing:1, marginBottom:3 }}>SPREAD WDO·DOL</div>
