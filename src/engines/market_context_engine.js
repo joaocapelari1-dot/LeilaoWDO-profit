@@ -85,13 +85,34 @@ class MarketContextEngine {
     });
   }
 
+  async _fetchCurrentFromAwesome() {
+    return new Promise((resolve) => {
+      const https = require('https');
+      const req = https.get('https://economia.awesomeapi.com.br/json/last/USD-BRL', (res) => {
+        let body = '';
+        res.on('data', c => body += c);
+        res.on('end', () => {
+          try {
+            const d = JSON.parse(body);
+            resolve(d?.USDBRL?.bid ? parseFloat(d.USDBRL.bid) : null);
+          } catch { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+    });
+  }
+
   async _fetchGap() {
     try {
-      // Buscar fechamento de ontem via AwesomeAPI (mais confiável que Twelve Data)
-      const prevCloseAwesome = await this._fetchGapFromAwesome();
+      // Buscar fechamento de ontem e preço atual via AwesomeAPI
+      const [prevCloseAwesome, currentAwesome] = await Promise.all([
+        this._fetchGapFromAwesome(),
+        this._fetchCurrentFromAwesome(),
+      ]);
       const snap = this._macroSnap;
       const prevClose  = prevCloseAwesome || snap?.usdbrl?.prevClose;
-      const currentRef = this.lastPrice || snap?.usdbrl?.price;
+      const currentRef = this.lastPrice || currentAwesome || snap?.usdbrl?.price;
 
       if (!prevClose || !currentRef) return;
 
