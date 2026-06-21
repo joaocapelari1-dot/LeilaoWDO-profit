@@ -20,6 +20,18 @@ bus.on('macro:update', (d) => {
   try { parentPort.postMessage({ type: 'worker:macro', data: d }); } catch(e) {}
 });
 
+bus.on('context:gap', (d) => {
+  try { parentPort.postMessage({ type: 'context:gap', data: d }); } catch(e) {}
+});
+
+bus.on('context:calendar', (d) => {
+  try { parentPort.postMessage({ type: 'context:calendar', data: d }); } catch(e) {}
+});
+
+bus.on('context:market_makers', (d) => {
+  try { parentPort.postMessage({ type: 'context:market_makers', data: d }); } catch(e) {}
+});
+
 // Repassa macro:bom_dia para o main thread
 bus.on('macro:bom_dia', (d) => {
   try { parentPort.postMessage({ type: 'macro:bom_dia', data: d }); } catch(e) {}
