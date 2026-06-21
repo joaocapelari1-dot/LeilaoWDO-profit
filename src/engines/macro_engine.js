@@ -140,11 +140,28 @@ class MacroEngine {
   }
 
   _scheduleStart() {
-    const raw845 = this._msUntil(SCHEDULE.START_HOUR, SCHEDULE.START_MIN);
-    const msUntil845 = Math.min(Math.max(raw845, 1000), 16 * 60 * 60 * 1000); // 1s a 16h
+    // Calcular próximo dia útil às 8h45 BRT
+    const now = new Date();
+    const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    const target = new Date(brt);
+    target.setUTCHours(11, 45, 0, 0); // 8h45 BRT = 11h45 UTC
+    if (target <= brt) target.setUTCDate(target.getUTCDate() + 1);
+    // Pular fins de semana
+    while (target.getUTCDay() === 0 || target.getUTCDay() === 6) {
+      target.setUTCDate(target.getUTCDate() + 1);
+    }
+    const msUntil845 = Math.max(target - now, 1000);
     this.log.info(`Próxima ativação em ${Math.round(msUntil845 / 1000)}s (08h45 BRT)`);
 
     this.scheduleTimer = setTimeout(() => {
+      // Verificar dia útil antes de ligar
+      const nowBrt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      const dia = nowBrt.getUTCDay();
+      if (dia === 0 || dia === 6) {
+        this.log.info('Macro Engine: fim de semana — reagendando...');
+        this._scheduleStart();
+        return;
+      }
       this._startNormal();
       this._scheduleClose();
     }, msUntil845);
