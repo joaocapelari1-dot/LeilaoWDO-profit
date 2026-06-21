@@ -36,6 +36,9 @@ if (isMainThread) {
     const macroWorker = new Worker(require('path').join(__dirname, 'macro_worker.js'));
     macroWorker.on('message', ({ type, data }) => {
       if (SNAPSHOT_TYPES.includes(type)) lastSnapshot[type] = data;
+      // Salvar contexto de mercado no snapshot
+      if (type === 'context:gap') lastSnapshot['context:gap'] = data;
+      if (type === 'context:calendar') lastSnapshot['context:calendar'] = data;
       bus.emit(type, data);
       // Repassar worker:macro como macro:update para o server (WebSocket) e worker principal (Claude)
       if (type === 'worker:macro') {
@@ -53,7 +56,7 @@ if (isMainThread) {
     // Worker → Main: recebe snapshots e faz broadcast
     // Cache do último snapshot para envio imediato a novos clientes
     const lastSnapshot = {};
-    const SNAPSHOT_TYPES = ['worker:auction','worker:risk','worker:execution','worker:macro','worker:adaptive'];
+    const SNAPSHOT_TYPES = ['worker:auction','worker:risk','worker:execution','worker:macro','worker:adaptive','context:gap','context:calendar'];
 
     worker.on('message', ({ type, data }) => {
       if (SNAPSHOT_TYPES.includes(type)) lastSnapshot[type] = data;
@@ -72,6 +75,8 @@ if (isMainThread) {
             execution: lastSnapshot['worker:execution'] || { paperMode:true, balance:50000, openPositions:[], closedTrades:[], stats:{} },
             macro:     lastSnapshot['worker:macro']     || null,
             adaptive:  lastSnapshot['worker:adaptive']  || null,
+            gap:       lastSnapshot['context:gap']      || null,
+            calendario:lastSnapshot['context:calendar'] || null,
           }
         };
         ws.send(JSON.stringify(snap));
