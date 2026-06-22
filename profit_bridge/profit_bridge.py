@@ -134,11 +134,13 @@ async def railway_client():
             async with websockets.connect(
                 RAILWAY_WS_URL,
                 extra_headers={"X-Bridge-Secret": BRIDGE_SECRET},
-                ping_interval=10,
-                ping_timeout=20
+                ping_interval=20,
+                ping_timeout=30,
+                close_timeout=10
             ) as ws:
                 log.info("CONECTADO no Railway via /bridge!")
                 await ws.send(json.dumps({"type":"bridge_auth","secret":BRIDGE_SECRET,"symbols":SYMBOLS}))
+                last_heartbeat = asyncio.get_event_loop().time()
                 while True:
                     events = []
                     try:
@@ -146,7 +148,12 @@ async def railway_client():
                     except queue.Empty: pass
                     if events:
                         await ws.send(safe_json(events) if len(events) > 1 else safe_json(events[0]))
-                    await asyncio.sleep(0.01)
+                    # Heartbeat a cada 30s para manter conexao viva
+                    now = asyncio.get_event_loop().time()
+                    if now - last_heartbeat >= 30:
+                        await ws.send(json.dumps({"type":"heartbeat","ts":int(now)}))
+                        last_heartbeat = now
+                    await asyncio.sleep(0.1)
         except Exception as e:
             log.error(f"Desconectado: {e} — reconectando em 5s")
             await asyncio.sleep(5)
