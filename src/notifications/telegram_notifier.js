@@ -59,9 +59,10 @@ class TelegramNotifier {
       this._send(`🧠 *Claude analisou*\nConfiança: ${conf}% | ${verd}\nMacro: ${d.macro_bias || 'NEUTRO'} | DOL×WDO: ${d.confluencia || '—'}`);
     });
 
-    // Monitora status da Cedro
+    // Monitora status da ProfitDLL
     this.bus.on('cedro:connected', () => { this._cedroOk = true; this._cedroLastSYN = Date.now(); });
     this.bus.on('cedro:syn',       () => { this._cedroLastSYN = Date.now(); });
+    this.bus.on('profit:ticker_state', () => { this._cedroOk = true; this._cedroLastSYN = Date.now(); });
 
     this.bus.on('risk:approved', (sinal) => {
       if (sinal.id === this.lastSignalId) return;
@@ -140,11 +141,11 @@ class TelegramNotifier {
     // 3. Testar Cedro — verifica SYN recente (últimos 90s)
     const synAge = this._cedroLastSYN ? Math.round((Date.now() - this._cedroLastSYN)/1000) : null;
     if (synAge !== null && synAge <= 90) {
-      resultados.push(`✅ Cedro: viva (SYN ${synAge}s atrás)`);
+      resultados.push(`✅ ProfitDLL: viva (tick ${synAge}s atrás)`);
     } else if (this._cedroOk) {
-      resultados.push(`⚠️ Cedro: conectou mas sem SYN há ${synAge ?? '?'}s`);
+      resultados.push(`⚠️ ProfitDLL: conectou mas sem tick há ${synAge ?? '?'}s`);
     } else {
-      resultados.push('❌ Cedro: não conectada');
+      resultados.push('❌ ProfitDLL: não conectada');
     }
 
     const total = Date.now() - start;
@@ -156,7 +157,7 @@ class TelegramNotifier {
 
   testar() {
     const hora = new Date().toLocaleTimeString('pt-BR', { timeZone:'America/Sao_Paulo' });
-    this._send(`🤖 *WDO Auction Engine Online*\n✅ Sistema iniciado e conectado à Cedro\n⏰ ${hora} BRT`);
+    this._send(`🤖 *WDO Auction Engine Online*\n✅ Sistema iniciado e conectado à ProfitDLL\n⏰ ${hora} BRT`);
   }
 
   _send(text) {
