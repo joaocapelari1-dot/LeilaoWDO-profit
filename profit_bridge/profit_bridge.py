@@ -196,6 +196,17 @@ async def railway_client():
                     if now - last_heartbeat >= 30:
                         await ws.send(json.dumps({"type":"heartbeat","ts":int(now)}))
                         last_heartbeat = now
+                        # Escrever bridge.status para watchdog
+                        try:
+                            import json as _json
+                            Path(r'C:\\ProfitBridge\\bridge.status').write_text(_json.dumps({
+                                "last_heartbeat": datetime.now().isoformat(),
+                                "railway_connected": True,
+                                "dll_connected": dll_ready.is_set(),
+                                "pid": os.getpid()
+                            }))
+                        except Exception:
+                            pass
                     await asyncio.sleep(0.1)
 
         except Exception as e:
