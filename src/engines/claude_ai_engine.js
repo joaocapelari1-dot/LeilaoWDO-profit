@@ -236,7 +236,7 @@ class ClaudeAIEngine {
       );
 
       const claudePromise = this.client.messages.create({
-        model:      'claude-sonnet-4-5',
+        model:      'claude-sonnet-4-6',
         max_tokens: MAX_TOKENS,
         system: [
           { type: 'text', text: this._systemPrompt(), cache_control: { type: 'ephemeral' } },
