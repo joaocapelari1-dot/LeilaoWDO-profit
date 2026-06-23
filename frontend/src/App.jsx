@@ -46,7 +46,7 @@ function LeilaoStatus({ auctionState, connected }) {
 function MercadoMundialPanel({ macro, tick, dolFeatures }) {
   const C = { panel:'#0c1219', border:'#1e2832', text:'#e2e8f0', muted:'#64748b', green:'#22c55e', red:'#ef4444', gold:'#f59e0b', cyan:'#06b6d4' }
 
-  const wdoPrice = tick?.last
+  const wdoPrice = tick?.theoreticalPrice || tick?.last  // Preferir preço teórico durante leilão
   const dolPrice = dolFeatures?.last || dolFeatures?.tick?.last
 
   const ativos = [
