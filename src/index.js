@@ -201,6 +201,13 @@ if (isMainThread) {
   bus.on('raw:book:dol',    (d) => normalizer.processBook(d));
   bus.on('raw:trade',       (d) => normalizer.processTrade(d));
   bus.on('raw:trade:dol',   (d) => normalizer.processTrade(d));
+  // FIX: ProfitClient emite cedro:* em vez de raw:* — adicionar mapeamento para DataNormalizer
+  bus.on('cedro:tick:wdo', (d) => normalizer.process(d));
+  bus.on('cedro:tick:dol', (d) => normalizer.process(d));
+  bus.on('cedro:book:wdo', (d) => normalizer.processBook(d));
+  bus.on('cedro:book:dol', (d) => normalizer.processBook(d));
+  bus.on('cedro:trade:wdo',(d) => normalizer.processTrade(d));
+  bus.on('cedro:trade:dol',(d) => normalizer.processTrade(d));
   bus.on('normalized:tick', (d) => features.onTick(d));
   bus.on('normalized:book', (d) => features.onBook(d));
   // macro:update→mktCtx movido para macro_worker.js
