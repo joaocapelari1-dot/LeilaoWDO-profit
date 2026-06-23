@@ -174,7 +174,7 @@ async def railway_client():
             log.info(f"Conectando no Railway: {RAILWAY_WS_URL}")
             async with websockets.connect(
                 RAILWAY_WS_URL,
-                extra_headers={"X-Bridge-Secret": BRIDGE_SECRET},
+                additional_headers={"X-Bridge-Secret": BRIDGE_SECRET},
                 ping_interval=20,
                 ping_timeout=30,
                 close_timeout=10
