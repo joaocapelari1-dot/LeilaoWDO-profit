@@ -1,10 +1,6 @@
 """
-ProfitBridge v4.0 — DLL e WebSocket com ciclos de vida independentes
-- DLL nunca reinicia por queda do WebSocket
-- WebSocket reconecta com exponential backoff sem tocar na DLL
-- Heartbeat ping/pong a cada 20s
-- Lock file para única instância
-- Windows-only
+ProfitBridge v3.0 — Arquitetura Invertida + Produção Estável
+Fixes: lock file, exponential backoff, heartbeat, sem auto-update, Windows-only
 """
 import asyncio, ctypes, json, logging, math, os, queue, sys, threading, time
 from datetime import datetime
@@ -12,8 +8,9 @@ from pathlib import Path
 import websockets
 from dotenv import load_dotenv
 
+# ── Verificar Windows ────────────────────────────────────────────
 if sys.platform != "win32":
-    print(f"ERRO: Windows obrigatório. Plataforma: {sys.platform}")
+    print(f"ERRO: profit_bridge.py requer Windows. Plataforma detectada: {sys.platform}")
     sys.exit(1)
 
 load_dotenv()
@@ -23,45 +20,30 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(r"C:\ProfitBridge\logs\bridge.log", encoding="utf-8")
+        logging.FileHandler("C:\\ProfitBridge\\logs\\bridge.log", encoding="utf-8")
     ]
 )
 log = logging.getLogger("ProfitBridge")
 
-ACTIVATION_KEY = os.getenv("PROFIT_ACTIVATION_KEY", "")
-USERNAME       = os.getenv("PROFIT_USERNAME", "")
-PASSWORD       = os.getenv("PROFIT_PASSWORD", "")
-DLL_PATH       = os.getenv("PROFIT_DLL_PATH", r"C:\ProfitBridge\Win64\ProfitDLL.dll")
-SYMBOLS        = [s.strip() for s in os.getenv("SYMBOLS", "WDOFUT,DOLFUT,WINFUT,INDFUT").split(",")]
-RAILWAY_WS_URL = os.getenv("RAILWAY_WS_URL", "wss://leilaowdo-profit-production.up.railway.app/ws")
-BRIDGE_SECRET  = os.getenv("BRIDGE_SECRET", "321Angelin@@")
-EXCHANGE_BMF   = "F"
-LOCK_FILE      = Path(r"C:\ProfitBridge\bridge.lock")
+ACTIVATION_KEY  = os.getenv("PROFIT_ACTIVATION_KEY", "")
+USERNAME        = os.getenv("PROFIT_USERNAME", "")
+PASSWORD        = os.getenv("PROFIT_PASSWORD", "")
+DLL_PATH        = os.getenv("PROFIT_DLL_PATH", r"C:\ProfitBridge\Win64\ProfitDLL.dll")
+SYMBOLS         = [s.strip() for s in os.getenv("SYMBOLS", "WDOFUT,DOLFUT,WINFUT,INDFUT").split(",")]
+RAILWAY_WS_URL  = os.getenv("RAILWAY_WS_URL", "wss://leilaowdo-profit-production.up.railway.app/bridge")
+BRIDGE_SECRET   = os.getenv("BRIDGE_SECRET", "321Angelin@@")
+EXCHANGE_BMF    = "F"
+LOCK_FILE       = Path(r"C:\ProfitBridge\bridge.lock")
 
-# ── Estados separados ────────────────────────────────────────────
-class DLLState:
-    STARTING = "STARTING"
-    READY    = "READY"
-    ERROR    = "ERROR"
-
-class WSState:
-    CONNECTING    = "CONNECTING"
-    CONNECTED     = "CONNECTED"
-    DISCONNECTED  = "DISCONNECTED"
-    RECONNECTING  = "RECONNECTING"
-
-dll_state = DLLState.STARTING
-ws_state  = WSState.DISCONNECTED
-
-# ── Lock file ────────────────────────────────────────────────────
+# ── Lock file — garantir única instância ─────────────────────────
 def acquire_lock():
     if LOCK_FILE.exists():
         try:
             pid = int(LOCK_FILE.read_text().strip())
             import ctypes as _ct
-            h = _ct.windll.kernel32.OpenProcess(0x1000, False, pid)
-            if h:
-                _ct.windll.kernel32.CloseHandle(h)
+            handle = _ct.windll.kernel32.OpenProcess(0x1000, False, pid)
+            if handle:
+                _ct.windll.kernel32.CloseHandle(handle)
                 log.error(f"Bridge já rodando (PID {pid}). Encerrando.")
                 sys.exit(1)
         except Exception:
@@ -71,12 +53,13 @@ def acquire_lock():
 
 def release_lock():
     try:
-        LOCK_FILE.unlink(missing_ok=True)
-        log.info("Lock liberado")
+        if LOCK_FILE.exists():
+            LOCK_FILE.unlink()
+            log.info("Lock liberado")
     except Exception:
         pass
 
-# ── Fila de eventos e callbacks ──────────────────────────────────
+# ── Callbacks e fila ─────────────────────────────────────────────
 event_queue = queue.Queue(maxsize=10000)
 dll_ready   = threading.Event()
 _cb_refs    = {}
@@ -138,9 +121,8 @@ def _cb_stub(*a): pass
 def safe_json(obj):
     return json.dumps(obj, default=lambda x: None if isinstance(x, float) and not math.isfinite(x) else x)
 
-# ── DLL — ciclo de vida independente ─────────────────────────────
+# ── DLL ──────────────────────────────────────────────────────────
 def init_dll(dll):
-    global dll_state
     _cb_refs["s"]  = TStateCallback(_cb_state)
     _cb_refs["t"]  = TNewTradeCallback(_cb_trade)
     _cb_refs["d"]  = TNewDailyCallback(_cb_daily)
@@ -155,7 +137,7 @@ def init_dll(dll):
     if r != 0: raise RuntimeError(f"DLL falhou: {r:#010x}")
     log.info("DLL inicializada.")
 
-def subscribe_dll(dll):
+def subscribe(dll):
     _cb_refs["theo"] = TTheoreticalPriceCallback(_cb_theo)
     _cb_refs["st"]   = TChangeStateTickerCallback(_cb_state_ticker)
     dll.SetTheoreticalPriceCallback.restype  = ctypes.c_int
@@ -172,42 +154,22 @@ def subscribe_dll(dll):
         log.info(f"Subscribe [{s}] T={dll.SubscribeTicker(s, EXCHANGE_BMF)} O={dll.SubscribeOfferBook(s, EXCHANGE_BMF)}")
 
 def dll_thread(dll):
-    """DLL roda em thread separada — independente do WebSocket"""
-    global dll_state
-    attempt = 0
-    while True:
-        try:
-            attempt += 1
-            dll_state = DLLState.STARTING
-            log.info(f"Inicializando DLL (tentativa {attempt})...")
-            init_dll(dll)
-            if not dll_ready.wait(timeout=60):
-                wait = min(15 * attempt, 120)
-                log.warning(f"Timeout Market Data (tentativa {attempt}) — aguardando {wait}s")
-                dll_ready.clear()
-                time.sleep(wait)
-                continue
-            time.sleep(1)
-            subscribe_dll(dll)
-            dll_state = DLLState.READY
-            log.info("DLL PRONTA — mantém ativa independente do WebSocket")
-            return  # DLL pronta, thread termina — DLL continua rodando via callbacks
-        except Exception as e:
-            wait = min(15 * attempt, 120)
-            dll_state = DLLState.ERROR
-            log.warning(f"DLL indisponivel (tentativa {attempt}): {e} — aguardando {wait}s")
-            time.sleep(wait)
+    try:
+        init_dll(dll)
+        if not dll_ready.wait(timeout=60):
+            log.error("Timeout Market Data")
+            return
+        time.sleep(1)
+        subscribe(dll)
+    except Exception as e:
+        log.exception(f"Erro DLL: {e}")
 
-# ── WebSocket — ciclo de vida independente ───────────────────────
+# ── WebSocket com exponential backoff ────────────────────────────
 async def railway_client():
-    """WebSocket reconecta sem tocar na DLL"""
-    global ws_state
     backoff = 5
-    BACKOFF_STEPS = [5, 10, 30, 60, 300]
-    backoff_idx = 0
+    MAX_BACKOFF = 300  # máximo 5 minutos
 
     while True:
-        ws_state = WSState.CONNECTING
         try:
             log.info(f"Conectando no Railway: {RAILWAY_WS_URL}")
             async with websockets.connect(
@@ -217,52 +179,33 @@ async def railway_client():
                 ping_timeout=30,
                 close_timeout=10
             ) as ws:
-                ws_state = WSState.CONNECTED
-                backoff_idx = 0  # reset backoff
                 log.info("CONECTADO no Railway via /bridge!")
-                await ws.send(json.dumps({
-                    "type": "bridge_auth",
-                    "secret": BRIDGE_SECRET,
-                    "symbols": SYMBOLS,
-                    "dll_state": dll_state
-                }))
+                backoff = 5  # reset backoff ao conectar
+                await ws.send(json.dumps({"type":"bridge_auth","secret":BRIDGE_SECRET,"symbols":SYMBOLS}))
                 last_heartbeat = asyncio.get_event_loop().time()
 
                 while True:
-                    # Enviar eventos da fila
                     events = []
                     try:
                         for _ in range(50): events.append(event_queue.get_nowait())
-                    except queue.Empty:
-                        pass
+                    except queue.Empty: pass
                     if events:
                         await ws.send(safe_json(events) if len(events) > 1 else safe_json(events[0]))
-
-                    # Heartbeat a cada 20s
+                    # Heartbeat a cada 30s
                     now = asyncio.get_event_loop().time()
-                    if now - last_heartbeat >= 20:
-                        await ws.send(json.dumps({
-                            "type": "heartbeat",
-                            "ts": int(now),
-                            "dll_state": dll_state,
-                            "symbols": SYMBOLS
-                        }))
+                    if now - last_heartbeat >= 30:
+                        await ws.send(json.dumps({"type":"heartbeat","ts":int(now)}))
                         last_heartbeat = now
-
                     await asyncio.sleep(0.1)
 
         except Exception as e:
-            ws_state = WSState.RECONNECTING
-            backoff = BACKOFF_STEPS[min(backoff_idx, len(BACKOFF_STEPS)-1)]
-            backoff_idx += 1
-            log.warning(f"WebSocket desconectado: {e}")
-            log.info(f"DLL state: {dll_state} — DLL NAO reinicia")
-            log.info(f"Reconectando em {backoff}s (tentativa {backoff_idx})...")
+            log.error(f"Desconectado: {e} — reconectando em {backoff}s")
             await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, MAX_BACKOFF)  # exponential backoff
 
 # ── Main ─────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    log.info("=== ProfitBridge v4.0 — DLL e WS independentes ===")
+    log.info("=== ProfitBridge v3.0 Produção ===")
     log.info(f"Railway: {RAILWAY_WS_URL}")
 
     if not all([ACTIVATION_KEY, USERNAME, PASSWORD]):
@@ -277,9 +220,7 @@ if __name__ == "__main__":
     acquire_lock()
     try:
         dll = ctypes.CDLL(str(p))
-        # DLL em thread separada — não bloqueia WebSocket
         threading.Thread(target=dll_thread, args=(dll,), daemon=True).start()
-        # WebSocket em loop assíncrono — não afeta DLL
         asyncio.run(railway_client())
     except KeyboardInterrupt:
         log.info("Encerrando...")
