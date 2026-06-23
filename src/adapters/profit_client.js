@@ -50,8 +50,8 @@ class ProfitClient {
     if(!isWDO&&!isDOL) return;
     const price=msg.theoretical_price; const qty=msg.theoretical_qty||0;
     if(!isFinite(price)||price<=0) return;
-    if(isWDO){this.theorWDO={price,qty};this.lastWDO={...this.lastWDO,theor_price:price,theor_qty:qty,in_auction:true,phase:'auction'};this.bus.emit('cedro:tick:wdo',{...this.lastWDO});}
-    else{this.theorDOL={price,qty};this.lastDOL={...this.lastDOL,theor_price:price,theor_qty:qty,in_auction:true,phase:'auction'};this.bus.emit('cedro:tick:dol',{...this.lastDOL});}
+    if(isWDO){this.theorWDO={price,qty};this.lastWDO={...this.lastWDO,theor_price:price,theor_qty:qty,last:(this.lastWDO.last||price),in_auction:true,phase:'auction'};this.bus.emit('cedro:tick:wdo',{...this.lastWDO});}
+    else{this.theorDOL={price,qty};this.lastDOL={...this.lastDOL,theor_price:price,theor_qty:qty,last:(this.lastDOL.last||price),in_auction:true,phase:'auction'};this.bus.emit('cedro:tick:dol',{...this.lastDOL});}
   }
   _onTickerState(msg) {
     const sym=msg.ticker||''; this.auctionActive[sym]=msg.in_auction||false;
