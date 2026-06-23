@@ -106,7 +106,7 @@ export default function App() {
   useEffect(() => {
     const t = localStorage.getItem('wdo_token')
     if (!t) return
-    fetch('https://leilaowdo-production.up.railway.app/api/auth/verify', {
+    fetch('https://leilaowdo-profit-production.up.railway.app/api/auth/verify', {
       headers: { Authorization: 'Bearer ' + t }
     }).then(r => {
       if (r.ok) setAuthed(true)
