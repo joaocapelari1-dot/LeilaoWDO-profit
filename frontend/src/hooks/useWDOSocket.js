@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-const WS_URL = 'wss://leilaowdo-production.up.railway.app/ws'
+const WS_URL = 'wss://leilaowdo-profit-production.up.railway.app/ws'
 
 export function useWDOSocket(token) {
   const [connected, setConnected]     = useState(false)
@@ -33,10 +33,10 @@ export function useWDOSocket(token) {
     const fetchDados = async () => {
       try {
         const [rHist, rBalMes, rBalAno, rJournal] = await Promise.all([
-          fetch('https://leilaowdo-production.up.railway.app/api/adaptive/historico', { headers: { Authorization: 'Bearer ' + token } }),
-          fetch('https://leilaowdo-production.up.railway.app/api/adaptive/balanco/mensal', { headers: { Authorization: 'Bearer ' + token } }),
-          fetch('https://leilaowdo-production.up.railway.app/api/adaptive/balanco/anual', { headers: { Authorization: 'Bearer ' + token } }),
-          fetch('https://leilaowdo-production.up.railway.app/api/adaptive/journal', { headers: { Authorization: 'Bearer ' + token } }),
+          fetch('https://leilaowdo-profit-production.up.railway.app/api/adaptive/historico', { headers: { Authorization: 'Bearer ' + token } }),
+          fetch('https://leilaowdo-profit-production.up.railway.app/api/adaptive/balanco/mensal', { headers: { Authorization: 'Bearer ' + token } }),
+          fetch('https://leilaowdo-profit-production.up.railway.app/api/adaptive/balanco/anual', { headers: { Authorization: 'Bearer ' + token } }),
+          fetch('https://leilaowdo-profit-production.up.railway.app/api/adaptive/journal', { headers: { Authorization: 'Bearer ' + token } }),
         ])
         const hist    = await rHist.json()
         const balMes  = await rBalMes.json()
