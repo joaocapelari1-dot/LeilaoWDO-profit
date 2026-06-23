@@ -113,8 +113,10 @@ def _cb_daily(a, d, o, h, l, c, v, *x):
     enqueue({"type":"daily","ticker":a.pwcTicker,"open":o,"high":h,"low":l,"close":c,"volume":v,"timestamp":datetime.now().isoformat()})
 
 def _cb_offer(a, act, pos, side, qty, ag, oid, p, hp, hq, hd, ho, ha, d, ps, pb):
-    acts = {0:"ADD",1:"EDIT",2:"DELETE",3:"DELETE_FROM",4:"FULL_BOOK"}
-    enqueue({"type":"offer_book","ticker":a.pwcTicker,"action":acts.get(act),"side":"BUY" if side==0 else "SELL","quantity":qty,"price":p if hp==b'\x01' else None,"timestamp":datetime.now().isoformat()})
+    # DESATIVADO: crash MakeOfferBookPointers na ProfitDLL 4.0.0.40
+    # Access violation em TConnectorCallbackManager.MakeOfferBookPointers
+    # OfferBook não é usado durante leilão — dados vêm do TinyBook + Trade
+    pass
 
 def _cb_stub(*a): pass
 
