@@ -1521,7 +1521,7 @@ Responda em português, de forma clara e direta. Máximo 3-4 frases por resposta
 
     try {
       const token = localStorage.getItem('wdo_token') || '';
-      const res = await fetch('https://leilaowdo-production.up.railway.app/api/chat', {
+      const res = await fetch('https://leilaowdo-profit-production.up.railway.app/api/chat', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
@@ -1642,7 +1642,7 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
   const runDiagnostico = async () => {
     setDiagRunning(true); setDiagResult(null)
     const token = localStorage.getItem('wdo_token') || ''
-    const B = 'https://leilaowdo-production.up.railway.app'
+    const B = 'https://leilaowdo-profit-production.up.railway.app'
     const itens = []
     try { const t=Date.now(),r=await fetch(B+'/health'),d=await r.json(); itens.push({nome:'Railway',ok:r.ok&&d.status==='ok',ms:Date.now()-t,detalhe:d.mode==='live'?'LIVE':'MOCK'}) } catch(e){itens.push({nome:'Railway',ok:false,detalhe:e.message})}
     try { const t=Date.now(),r=await fetch(B+'/api/auth/verify',{headers:{Authorization:'Bearer '+token}}); itens.push({nome:'Auth JWT',ok:r.ok,ms:Date.now()-t,detalhe:r.ok?'Token válido':'Expirado'}) } catch(e){itens.push({nome:'Auth JWT',ok:false,detalhe:e.message})}
@@ -1663,7 +1663,7 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
 
   useEffect(() => {
     const token = localStorage.getItem('wdo_token') || ''
-    const B = 'https://leilaowdo-production.up.railway.app'
+    const B = 'https://leilaowdo-profit-production.up.railway.app'
     
     // Testa Macro Engine via backend
     const t1 = Date.now()
@@ -1918,7 +1918,7 @@ export function LoginScreen({ onLogin }) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 30000)
     try {
-      const res = await fetch('https://leilaowdo-production.up.railway.app/api/auth/login', {
+      const res = await fetch('https://leilaowdo-profit-production.up.railway.app/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usuario, senha }),
