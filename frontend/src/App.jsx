@@ -100,32 +100,12 @@ function MercadoMundialPanel({ macro, tick, dolFeatures }) {
 }
 
 export default function App() {
-  const [token, setToken]   = useState(() => localStorage.getItem('wdo_token') || '')
-  const [authed, setAuthed] = useState(false)
-
-  useEffect(() => {
-    const t = localStorage.getItem('wdo_token')
-    if (!t) return
-    fetch('https://leilaowdo-profit-production.up.railway.app/api/auth/verify', {
-      headers: { Authorization: 'Bearer ' + t }
-    }).then(r => {
-      if (r.ok) setAuthed(true)
-      else { localStorage.removeItem('wdo_token'); setToken('') }
-    }).catch(() => {})
-  }, [])
-
-  const handleLogin = (t) => { setToken(t); setAuthed(true) }
-  const handleLogout = () => {
-    localStorage.removeItem('wdo_token')
-    localStorage.removeItem('wdo_usuario')
-    setToken(''); setAuthed(false)
-  }
+  const token = 'bypass'
+  const handleLogout = () => {}
 
   const socket = useWDOSocket(token)
   const [tab, setTab] = useState('dashboard')
   useSignalAlert(socket.signal)
-
-  if (!authed) return <LoginScreen onLogin={handleLogin} />
 
   return (
     <div style={{ minHeight:'100vh', background:'#080c10', color:'#e2e8f0', fontFamily:'monospace' }}>
