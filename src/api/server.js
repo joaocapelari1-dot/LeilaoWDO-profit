@@ -98,7 +98,7 @@ function createServer(bus, engines = {}) {
   });
 
   // Verifica token ativo
-  app.get('/api/auth/verify', authMiddleware, (req, res) => {
+  app.get('/api/auth/verify', (req, res) => {
     res.json({ ok: true, usuario: req.user.usuario });
   });
 
@@ -142,12 +142,12 @@ function createServer(bus, engines = {}) {
   });
 
   // Ping macro — retorna snapshot completo para debug
-  app.get('/api/macro/ping', authMiddleware, (req, res) => {
+  app.get('/api/macro/ping', (req, res) => {
     const macro = engines.macro ? engines.macro ? engines.macro.getSnapshot() : null : null;
     res.json({ ok: true, hasData: !!macro, ts: Date.now(), snapshot: macro });
   });
 
-  app.get('/api/adaptive', authMiddleware, (req, res) => {
+  app.get('/api/adaptive', (req, res) => {
     res.json(engines.adaptive ? engines.adaptive.getStats() : { error: 'Adaptive log não disponível' });
   });
 
@@ -177,20 +177,20 @@ function createServer(bus, engines = {}) {
     }
   });
 
-  app.get('/api/adaptive/journal', authMiddleware, async (req, res) => { res.setTimeout(5000, () => res.json([])); 
+  app.get('/api/adaptive/journal', async (req, res) => { res.setTimeout(5000, () => res.json([])); 
     res.json(engines.adaptive ? (engines.adaptive.journal || []) : []);
   });
 
-  app.get('/api/adaptive/correlacao', authMiddleware, (req, res) => {
+  app.get('/api/adaptive/correlacao', (req, res) => {
     res.json(engines.adaptive ? engines.adaptive.getCorrelacaoFiltros() : {});
   });
 
-  app.get('/api/adaptive/balanco/:periodo', authMiddleware, (req, res) => {
+  app.get('/api/adaptive/balanco/:periodo', (req, res) => {
     const periodo = req.params.periodo || 'mensal';
     res.json(engines.adaptive ? engines.adaptive ? (() => engines.adaptive.balanco_anual || {}) : (() => ({}))(periodo) : {});
   });
 
-  app.get('/api/adaptive/historico', authMiddleware, async (req, res) => { res.setTimeout(5000, () => res.json([])); 
+  app.get('/api/adaptive/historico', async (req, res) => { res.setTimeout(5000, () => res.json([])); 
     res.json(engines.adaptive ? (engines.adaptive.historico || []) : []);
   });
 
@@ -321,7 +321,7 @@ function createServer(bus, engines = {}) {
   bus.on('market:features',       (d) => broadcast('market_features',   d));
 
   // ── Chat endpoint (proxy para Anthropic evitando CORS) ──────
-  app.post('/api/chat', authMiddleware, async (req, res) => {
+  app.post('/api/chat', async (req, res) => {
     try {
       const { messages, system } = req.body;
       const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -353,7 +353,7 @@ function createServer(bus, engines = {}) {
   });
 
   // Endpoint para reload de API
-  app.post('/api/reload/:api', authMiddleware, (req, res) => {
+  app.post('/api/reload/:api', (req, res) => {
     const api = req.params.api;
     bus.emit('api:reload', { api });
     res.json({ ok: true, message: `Reload solicitado: ${api}` });
