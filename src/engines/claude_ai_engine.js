@@ -230,9 +230,16 @@ class ClaudeAIEngine {
       this.totalChamadas++;
       this.log.info(`Claude #${this.totalChamadas} [${motivo}]`);
 
-      // ── Proteção 1: Timeout de 15s (com prompt caching, calls subsequentes ficam bem mais rápidas) ──
+      // ── Proteção 1: Timeout adaptativo — 25s na janela crítica, 15s fora ──
+      // CRÍTICO: durante 8h55→9h00:50 o prompt é maior e o sistema precisa de resposta real
+      // Aumentar timeout evita cair em DEGRADED MODE com 90% aggressor ratio (bug 12/06)
+      const _brtT = new Date(Date.now() - 3*60*60*1000);
+      const _hT = _brtT.getUTCHours(); const _mT = _brtT.getUTCMinutes(); const _sT = _brtT.getUTCSeconds();
+      const _naJanelaCritica = (_hT === 8 && _mT >= 55) || (_hT === 9 && _mT === 0 && _sT <= 50);
+      const TIMEOUT_MS = _naJanelaCritica ? 25000 : 15000;
+      const TIMEOUT_LABEL = _naJanelaCritica ? 'TIMEOUT_25S_CRITICO' : 'TIMEOUT_15S';
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('TIMEOUT_15S')), 15000) // 15s timeout
+        setTimeout(() => reject(new Error(TIMEOUT_LABEL)), TIMEOUT_MS)
       );
 
       const claudePromise = this.client.messages.create({
@@ -260,8 +267,8 @@ class ClaudeAIEngine {
     } catch (e) {
       this.claudeErros++;
 
-      if (e.message === 'TIMEOUT_15S' || e.message === 'TIMEOUT_10S') {
-        this.log.warn(`⏱️ Claude timeout (>15s) — usando cache anterior`);
+      if (e.message.startsWith('TIMEOUT_')) {
+        this.log.warn(`⏱️ Claude timeout (${e.message}) — usando cache anterior`);
       } else {
         this.log.error('Erro Claude API:', e.message);
       }
