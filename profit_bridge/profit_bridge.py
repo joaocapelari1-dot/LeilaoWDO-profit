@@ -154,15 +154,26 @@ def subscribe(dll):
         log.info(f"Subscribe [{s}] T={dll.SubscribeTicker(s, EXCHANGE_BMF)} O={dll.SubscribeOfferBook(s, EXCHANGE_BMF)}")
 
 def dll_thread(dll):
-    try:
-        init_dll(dll)
-        if not dll_ready.wait(timeout=60):
-            log.error("Timeout Market Data")
+    # Retry inteligente — DLL pode nao estar pronta imediatamente
+    attempt = 0
+    while True:
+        try:
+            attempt += 1
+            log.info(f"Inicializando DLL (tentativa {attempt})...")
+            init_dll(dll)
+            if not dll_ready.wait(timeout=60):
+                log.warning(f"Timeout Market Data (tentativa {attempt}) — aguardando 15s")
+                dll_ready.clear()
+                time.sleep(15)
+                continue
+            time.sleep(1)
+            subscribe(dll)
+            log.info("DLL pronta e subscrita com sucesso")
             return
-        time.sleep(1)
-        subscribe(dll)
-    except Exception as e:
-        log.exception(f"Erro DLL: {e}")
+        except Exception as e:
+            wait = min(15 * attempt, 120)
+            log.warning(f"DLL indisponivel (tentativa {attempt}): {e} — aguardando {wait}s")
+            time.sleep(wait)
 
 # ── WebSocket com exponential backoff ────────────────────────────
 async def railway_client():
