@@ -216,11 +216,23 @@ function createServer(bus, engines = {}) {
   const clients = new Set();
 
   // Heartbeat para manter WebSocket vivo
+  const bridgeClients = new Set();
+
   const heartbeat = setInterval(() => {
+    // Ping clientes frontend
     clients.forEach(ws => {
       if (ws.readyState === WebSocket.OPEN) ws.ping();
     });
-  }, 30000);
+    // Ping bridge VPS para manter conexão viva
+    bridgeClients.forEach(ws => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.isAlive = false;
+        ws.ping();
+      } else {
+        bridgeClients.delete(ws);
+      }
+    });
+  }, 20000);
 
   wss.on('connection', (ws, req) => {
     // Detectar se é conexão da VPS (bridge) ou frontend
@@ -233,6 +245,11 @@ function createServer(bus, engines = {}) {
         return;
       }
       log.info('✅ ProfitBridge VPS conectado via /ws!');
+      // Adicionar bridge ao heartbeat para manter conexão viva
+      ws.isAlive = true;
+      ws.on('pong', () => { ws.isAlive = true; });
+      bridgeClients.add(ws);
+      ws.on('close', () => bridgeClients.delete(ws));
       ws.on('message', (data) => {
         try {
           const cleaned = data.toString().replace(/-Infinity/g, "null").replace(/\bInfinity\b/g, "null").replace(/\bNaN\b/g, "null");
