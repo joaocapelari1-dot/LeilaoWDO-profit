@@ -40,7 +40,7 @@ class ProfitClient {
       theor_price:isWDO?this.theorWDO.price:this.theorDOL.price,
       theor_qty:isWDO?this.theorWDO.qty:this.theorDOL.qty,
       surplus:0,surplus_side:null,buy_agent:msg.buy_agent||0,sell_agent:msg.sell_agent||0,
-      in_auction:this.auctionActive[sym]||false};
+      in_auction:this.auctionActive[sym]||false,phase:this.auctionActive[sym]?'auction':'continuous'};
     if(isWDO){this.lastWDO={...this.lastWDO,...tick};this.bus.emit('cedro:tick:wdo',{...this.lastWDO});this.bus.emit('cedro:trade:wdo',{symbol:sym,price:tick.last,qty:tick.trade_vol,agressor,timestamp:tick.timestamp});}
     else{this.lastDOL={...this.lastDOL,...tick};this.bus.emit('cedro:tick:dol',{...this.lastDOL});this.bus.emit('cedro:trade:dol',{symbol:sym,price:tick.last,qty:tick.trade_vol,agressor,timestamp:tick.timestamp});}
     this.bus.emit('cedro:syn',{timestamp:Date.now()});
@@ -50,8 +50,8 @@ class ProfitClient {
     if(!isWDO&&!isDOL) return;
     const price=msg.theoretical_price; const qty=msg.theoretical_qty||0;
     if(!isFinite(price)||price<=0) return;
-    if(isWDO){this.theorWDO={price,qty};this.lastWDO={...this.lastWDO,theor_price:price,theor_qty:qty,in_auction:true};this.bus.emit('cedro:tick:wdo',{...this.lastWDO});}
-    else{this.theorDOL={price,qty};this.lastDOL={...this.lastDOL,theor_price:price,theor_qty:qty,in_auction:true};this.bus.emit('cedro:tick:dol',{...this.lastDOL});}
+    if(isWDO){this.theorWDO={price,qty};this.lastWDO={...this.lastWDO,theor_price:price,theor_qty:qty,in_auction:true,phase:'auction'};this.bus.emit('cedro:tick:wdo',{...this.lastWDO});}
+    else{this.theorDOL={price,qty};this.lastDOL={...this.lastDOL,theor_price:price,theor_qty:qty,in_auction:true,phase:'auction'};this.bus.emit('cedro:tick:dol',{...this.lastDOL});}
   }
   _onTickerState(msg) {
     const sym=msg.ticker||''; this.auctionActive[sym]=msg.in_auction||false;
