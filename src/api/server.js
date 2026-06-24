@@ -312,6 +312,11 @@ function createServer(bus, engines = {}) {
     const now = Date.now();
     if (now - lastBook >= 200) { lastBook = now; broadcast('book', d); }
   });
+  let lastBookDol = 0;
+  bus.on('book:update:dol', (d) => {
+    const now = Date.now();
+    if (now - lastBookDol >= 200) { lastBookDol = now; broadcast('book_dol', d); }
+  });
   bus.on('iceberg:detected',   (d) => broadcast('iceberg',        d));
   bus.on('context:gap',        (d) => broadcast('context_gap',     d));
   bus.on('context:calendar',   (d) => broadcast('context_calendar', d));
