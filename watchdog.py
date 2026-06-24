@@ -12,7 +12,7 @@ LOCK_FILE   = Path(r'C:\ProfitBridge\bridge.lock')
 PYTHON      = r'C:\Program Files\Python311\python.exe'
 BRIDGE      = r'C:\ProfitBridge\profit_bridge.py'
 DLL_PATH    = os.environ.get('PROFIT_DLL_PATH', r'C:\ProfitBridge\Win64\ProfitDLL.dll')
-MAX_IDLE    = 300  # 5 minutos sem heartbeat = problema real
+MAX_IDLE    = 120  # 2 minutos sem heartbeat = problema real
 
 def wlog(msg):
     ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
