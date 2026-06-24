@@ -257,7 +257,7 @@ export function AuctionPanel({ auctionState, features, signal }) {
 
 // ──────────────────────────────────────────────────
 const TIMEFRAMES = [
-  { label: 'LEILÃO 5s', ms: 5000,   max: 120 },
+  { label: 'LEILÁO 5s', ms: 5000,   max: 120 },
   { label: '1M',        ms: 60000,  max: 120 },
   { label: '5M',        ms: 300000, max: 80  },
   { label: '15M',       ms: 900000, max: 60  },
@@ -368,7 +368,7 @@ export function AIPanel({ aiAnalysis }) {
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:8 }}>
-        <Kv label="DIREÇÃO"   value={dir.toUpperCase()} color={dirColor} />
+        <Kv label="DIREÇÁO"   value={dir.toUpperCase()} color={dirColor} />
         <Kv label="CONFIANÇA" value={`${confPct}%`} color={confPct>=85?C.green:confPct>=70?C.gold:C.red} />
         <Kv label="ICEBERG"   value={iceOn ? 'ð§ ATIVO' : '—'} color={iceOn ? C.cyan : C.dim} />
       </div>
@@ -456,9 +456,9 @@ export function AIPanel({ aiAnalysis }) {
           {ai.amplitudeEsperada && <div style={{ fontSize:9, color:C.muted, marginTop:4 }}>Amplitude: {ai.amplitudeEsperada}</div>}
           {ai.baseCalculoAlvo   && <div style={{ fontSize:9, color:C.dim,   marginTop:2 }}>{ai.baseCalculoAlvo}</div>}
           <div style={{ display:'flex', gap:6, marginTop:6, flexWrap:'wrap' }}>
-            {ai.absorcaoDetectada && <span style={{ fontSize:8, color:C.green, background:'rgba(34,197,94,0.15)', padding:'1px 5px', borderRadius:3 }}>ABSORÇÃO ✓</span>}
+            {ai.absorcaoDetectada && <span style={{ fontSize:8, color:C.green, background:'rgba(34,197,94,0.15)', padding:'1px 5px', borderRadius:3 }}>ABSORÇÁO ✓</span>}
             {ai.escoraDetectada   && <span style={{ fontSize:8, color:C.red,   background:'rgba(239,68,68,0.15)',  padding:'1px 5px', borderRadius:3 }}>ESCORA @ {ai.escoraPreco?.toFixed(2)}</span>}
-            {ai.exaustaoDetectada && <span style={{ fontSize:8, color:C.gold,  background:'rgba(245,158,11,0.15)', padding:'1px 5px', borderRadius:3 }}>EXAUSTÃO ⚠️</span>}
+            {ai.exaustaoDetectada && <span style={{ fontSize:8, color:C.gold,  background:'rgba(245,158,11,0.15)', padding:'1px 5px', borderRadius:3 }}>EXAUSTÁO ⚠️</span>}
           </div>
           {ai.leituraTape && <div style={{ fontSize:9, color:C.dim, marginTop:4, fontStyle:'italic' }}>{ai.leituraTape}</div>}
         </div>
@@ -466,7 +466,7 @@ export function AIPanel({ aiAnalysis }) {
 
       <div style={{ fontSize:10, color:C.muted, lineHeight:1.6 }}>
         {ai.reasoning      && <div style={{ marginBottom:3, color:C.text }}>{ai.reasoning}</div>}
-        {ai.leituraLeilao  && <div><span style={{ color:C.blue }}>LEILÃO</span> {ai.leituraLeilao}</div>}
+        {ai.leituraLeilao  && <div><span style={{ color:C.blue }}>LEILÁO</span> {ai.leituraLeilao}</div>}
         {ai.leituraMacro   && <div><span style={{ color:C.gold }}>MACRO</span> {ai.leituraMacro}</div>}
         {ai.riscoPrincipal && <div><span style={{ color:C.red }}>RISCO</span> {ai.riscoPrincipal}</div>}
         {ai.leituraTape    && <div style={{ marginTop:4 }}><span style={{ color:C.cyan }}>TAPE</span> {ai.leituraTape}</div>}
@@ -731,7 +731,7 @@ export function SuperDOM({ book, features, levels = 40 }) {
           const isBigAsk = row.askQty >= maxQty * 0.4
           const ic       = row.iceberg
           return (
-            <div key={i} style={{ display:'flex', alignItems:'stretch', minHeight:19, borderBottom:`1px solid ${C.border}12`, background: row.isCurrent ? 'rgba(245,158,11,0.18)' : 'transparent' }}>
+            <div key={i} style={{ display:'flex', alignItems:'stretch', minHeight:18, borderBottom:`1px solid ${C.border}20`, background: row.isCurrent ? 'rgba(245,158,11,0.18)' : 'transparent' }}>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', padding:'0 6px' }}>
                 {hasBid && <div style={{ position:'absolute', right:0, top:0, bottom:0, width:`${bidPct}%`, background:'rgba(34,197,94,0.22)', borderRadius:'2px 0 0 2px' }} />}
                 <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? (isBigBid ? '— ' : '') + row.bidQty : ''}</span>
@@ -836,7 +836,7 @@ export function SuperDOMDOL({ dolFeatures, levels = 40 }) {
           const isBigBid = row.bidQty >= maxQty * 0.4
           const isBigAsk = row.askQty >= maxQty * 0.4
           return (
-            <div key={i} style={{ display:'flex', alignItems:'stretch', minHeight:19, borderBottom:`1px solid ${C.border}12`, background: row.isCurrent ? 'rgba(245,158,11,0.18)' : 'transparent' }}>
+            <div key={i} style={{ display:'flex', alignItems:'stretch', minHeight:18, borderBottom:`1px solid ${C.border}20`, background: row.isCurrent ? 'rgba(245,158,11,0.18)' : 'transparent' }}>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', padding:'0 6px' }}>
                 {hasBid && <div style={{ position:'absolute', right:0, top:0, bottom:0, width:`${bidPct}%`, background:'rgba(34,197,94,0.22)' }} />}
                 <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? (isBigBid ? '— ' : '') + row.bidQty : ''}</span>
@@ -883,7 +883,7 @@ export function DecisionWindow({ windowState, snapshots }) {
     <div style={{ background:'#0c1219', padding:'10px 12px', borderBottom:'1px solid #1e2832' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
         <span style={{ fontSize:9, letterSpacing:2, color: isActive ? '#f59e0b' : '#64748b', textTransform:'uppercase' }}>
-          {isActive ? '🕘 JANELA 9h00→9h01 ATIVA' : 'JANELA DE DECISÃO'}
+          {isActive ? '🕘 JANELA 9h00→9h01 ATIVA' : 'JANELA DE DECISÁO'}
         </span>
         {windowState?.segundosRestantes > 0 && (
           <span style={{ fontSize:9, color:'#f59e0b', ...mono }}>{windowState.segundosRestantes}s</span>
@@ -1101,7 +1101,7 @@ export function CalibracaoPanel({ adaptive }) {
   return (
     <div style={{ ...panel, border:`1px solid ${statusColor}40` }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-        <span style={label}>CALIBRAÇÃO ADAPTATIVA</span>
+        <span style={label}>CALIBRAÇÁO ADAPTATIVA</span>
         <span style={{ fontSize:9, color:statusColor, fontWeight:700, letterSpacing:1 }}>{adaptive.status}</span>
       </div>
 
@@ -1453,7 +1453,7 @@ function PadroesList({ adaptive, C, mono }) {
         <Row label="Dias sem sinal" value={pctSemSinal+'%'} color={C.muted} sub={semSinal+' de '+historico.length+' pregões'} />
 
         <div style={{ marginTop:16, padding:'10px 12px', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.2)', borderRadius:4 }}>
-          <div style={{ fontSize:9, letterSpacing:2, color:'#64748b', marginBottom:6 }}>RECOMENDAÇÃO DO SISTEMA</div>
+          <div style={{ fontSize:9, letterSpacing:2, color:'#64748b', marginBottom:6 }}>RECOMENDAÇÁO DO SISTEMA</div>
           {melhorDia && <div style={{ fontSize:10, color:'#e2e8f0', lineHeight:1.6 }}>
             Operar com mais confiança Á s <span style={{ color:C.green }}>{melhorDia.nome}s</span>
             {piorDia && <span>. Cautela extra Á s <span style={{ color:C.red }}>{piorDia.nome}s</span></span>}.
@@ -1495,7 +1495,7 @@ ESTADO ATUAL DO SISTEMA:
 - DOL×WDO: ${ai.confluenciaDolWdo || 'N/A'}
 - Macro: ${ai.alinhamentoMacro || 'N/A'}
 
-CALIBRAÇÃO:
+CALIBRAÇÁO:
 - Status: ${stats.status || 'DEFAULT'}
 - Total pregões: ${stats.totalPregoes || 0}
 - Thresholds: Escora ${stats.thresholds?.escora_multiplicador || 3.0}x | Stop Vol ${Math.round(stats.thresholds?.stopping_volume || 300)}
