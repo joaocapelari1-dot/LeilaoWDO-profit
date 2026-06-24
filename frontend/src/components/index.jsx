@@ -734,7 +734,7 @@ export function SuperDOM({ book, features, levels = 40 }) {
             <div key={i} style={{ display:'flex', alignItems:'stretch', minHeight:18, borderBottom:`1px solid ${C.border}20`, background: row.isCurrent ? 'rgba(245,158,11,0.18)' : 'transparent' }}>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', padding:'0 6px' }}>
                 {hasBid && <div style={{ position:'absolute', right:0, top:0, bottom:0, width:`${bidPct}%`, background:'rgba(34,197,94,0.22)', borderRadius:'2px 0 0 2px' }} />}
-                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? (isBigBid ? '— ' : '') + row.bidQty : ''}</span>
+                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? row.bidQty : ''}</span>
               </div>
               <div style={{ width:76, display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <span style={{ fontSize:row.isCurrent?10:9, fontWeight:row.isCurrent?700:400, color:row.isCurrent?C.gold:hasBid?'#7dc7a0':hasAsk?'#c77d7d':C.dim, background:row.isCurrent?'rgba(245,158,11,0.25)':'transparent', padding:row.isCurrent?'1px 4px':0, borderRadius:2, fontFamily:'monospace' }}>
@@ -743,7 +743,7 @@ export function SuperDOM({ book, features, levels = 40 }) {
               </div>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 6px' }}>
                 {hasAsk && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${askPct}%`, background:'rgba(239,68,68,0.22)', borderRadius:'0 2px 2px 0' }} />}
-                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.red, fontWeight:isBigAsk?700:400, fontFamily:'monospace' }}>{hasAsk ? (isBigAsk ? '— ' : '') + row.askQty : ''}</span>
+                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.red, fontWeight:isBigAsk?700:400, fontFamily:'monospace' }}>{hasAsk ? row.askQty : ''}</span>
               </div>
               <div style={{ width:52, display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 4px' }}>
                 {ic && <span style={{ fontSize:8, color:C.cyan, background:'rgba(6,182,212,0.2)', padding:'1px 3px', borderRadius:3, border:`1px solid ${C.cyan}40`, fontFamily:'monospace' }}>ð§{ic.count}</span>}
@@ -839,7 +839,7 @@ export function SuperDOMDOL({ dolFeatures, levels = 40 }) {
             <div key={i} style={{ display:'flex', alignItems:'stretch', minHeight:18, borderBottom:`1px solid ${C.border}20`, background: row.isCurrent ? 'rgba(245,158,11,0.18)' : 'transparent' }}>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', padding:'0 6px' }}>
                 {hasBid && <div style={{ position:'absolute', right:0, top:0, bottom:0, width:`${bidPct}%`, background:'rgba(34,197,94,0.22)' }} />}
-                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? (isBigBid ? '— ' : '') + row.bidQty : ''}</span>
+                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? row.bidQty : ''}</span>
               </div>
               <div style={{ width:76, display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <span style={{ fontSize:row.isCurrent?10:9, fontWeight:row.isCurrent?700:400, color:row.isCurrent?C.gold:hasBid?'#7dc7a0':hasAsk?'#c77d7d':C.dim, background:row.isCurrent?'rgba(245,158,11,0.25)':'transparent', padding:row.isCurrent?'1px 4px':0, borderRadius:2, fontFamily:'monospace' }}>
@@ -848,7 +848,7 @@ export function SuperDOMDOL({ dolFeatures, levels = 40 }) {
               </div>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 6px' }}>
                 {hasAsk && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${askPct}%`, background:'rgba(239,68,68,0.22)' }} />}
-                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.red, fontWeight:isBigAsk?700:400, fontFamily:'monospace' }}>{hasAsk ? (isBigAsk ? '— ' : '') + row.askQty : ''}</span>
+                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.red, fontWeight:isBigAsk?700:400, fontFamily:'monospace' }}>{hasAsk ? row.askQty : ''}</span>
               </div>
               <div style={{ width:36 }} />
             </div>
