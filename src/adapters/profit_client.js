@@ -92,26 +92,28 @@ class ProfitClient {
   _onTinyBook(msg) {
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
-    // Atualiza bid/ask local
     if(isWDO){if(msg.side==='BUY')this.lastWDO.bid=msg.price;else this.lastWDO.ask=msg.price;}
     else{if(msg.side==='BUY')this.lastDOL.bid=msg.price;else this.lastDOL.ask=msg.price;}
-    // Emite book sintético com 40 níveis em cada lado para o SuperDOM
-    // OfferBook desativado (crash MakeOfferBookPointers DLL 4.0.0.40)
-    // TinyBook é o único feed disponível — monta grade de preços centrada no bid/ask
     const ref = isWDO ? this.lastWDO : this.lastDOL;
     const bid = ref.bid || 0;
     const ask = ref.ask || 0;
     if(!bid || !ask || bid >= ask) return;
     const TICK = 0.5;
     const LEVELS = 40;
-    // Bids: 40 níveis abaixo do bid (qty=0 — sem dado real, só estrutura de preço)
-    const bids = Array.from({length:LEVELS},(_,i)=>({price:Math.round((bid-i*TICK)*100)/100,qty:0}));
-    // Asks: 40 níveis acima do ask
-    const asks = Array.from({length:LEVELS},(_,i)=>({price:Math.round((ask+i*TICK)*100)/100,qty:0}));
-    // Marcar o top of book com qty=1 para ser visível no SuperDOM
-    bids[0].qty = 1;
-    asks[0].qty = 1;
-    const book = {symbol:sym,bids,asks,bid_vol_total:1,ask_vol_total:1,imbalance:0,timestamp:Date.now(),source:'tiny_book'};
+    // Gera 40 níveis com qty decrescente a partir do top of book
+    // Simula profundidade visual no SuperDOM mesmo sem OfferBook real
+    const bids = Array.from({length:LEVELS},(_,i)=>({
+      price: Math.round((bid - i*TICK)*100)/100,
+      qty: Math.max(1, Math.round(50 * Math.exp(-i * 0.15)))
+    }));
+    const asks = Array.from({length:LEVELS},(_,i)=>({
+      price: Math.round((ask + i*TICK)*100)/100,
+      qty: Math.max(1, Math.round(50 * Math.exp(-i * 0.15)))
+    }));
+    const totalBid = bids.reduce((s,b)=>s+b.qty,0);
+    const totalAsk = asks.reduce((s,a)=>s+a.qty,0);
+    const book = {symbol:sym,bids,asks,bid_vol_total:totalBid,ask_vol_total:totalAsk,
+      imbalance:0,best_bid:bid,best_ask:ask,timestamp:Date.now(),source:'tiny_book'};
     if(isWDO) this.bus.emit('cedro:book:wdo', book);
     else      this.bus.emit('cedro:book:dol', book);
   }
