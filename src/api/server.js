@@ -369,6 +369,7 @@ function createServer(bus, engines = {}) {
   bus.on('adaptive:pregao_salvo',(d) => broadcast('adaptive_pregao',  d));
   bus.on('feature:wdo',        (d) => broadcast('features',       d));
   bus.on('feature:dol',        (d) => broadcast('features_dol',   d));
+  bus.on('cedro:tick:dol',     (d) => { if (d?.last) broadcast('tick_dol', d); });
   // ai:analise já registrado acima (linha 301)
   bus.on('risk:approved',      (d) => broadcast('risk_approved',  d));
   bus.on('risk:rejected',      (d) => broadcast('risk_rejected',  d));
