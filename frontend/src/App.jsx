@@ -34,7 +34,7 @@ function LeilaoStatus({ auctionState, connected }) {
   const _diaUtil = _dia >= 1 && _dia <= 5
   const _mercadoAberto = _diaUtil && _hora >= 9.0 && _hora < 18.0
   const color  = online ? '#22c55e' : _mercadoAberto ? '#f59e0b' : '#ef4444'
-  const label  = online ? 'LEILÃO ONLINE' : (!_diaUtil || !_mercadoAberto) ? 'AGUARDANDO' : state === 'CONTINUOUS' ? 'MERCADO ABERTO' : state === 'CLOSING' ? 'FECHAMENTO' : 'AGUARDANDO'
+  const label  = online ? 'LEILÁO ONLINE' : (!_diaUtil || !_mercadoAberto) ? 'AGUARDANDO' : state === 'CONTINUOUS' ? 'MERCADO ABERTO' : state === 'CLOSING' ? 'FECHAMENTO' : 'AGUARDANDO'
   return (
     <div style={{ display:'flex', alignItems:'center', gap:6, padding:'3px 10px', background:`${color}15`, border:`1px solid ${color}40`, borderRadius:20 }}>
       <div style={{ width:7, height:7, borderRadius:'50%', background:color, boxShadow:`0 0 6px ${color}`, animation: online ? 'pulse 1.5s infinite' : 'none' }} />
@@ -66,7 +66,7 @@ function MercadoMundialPanel({ macro, tick, dolFeatures }) {
       <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
         {ativos.map((a, i) => {
           const v   = a.val ? Number(a.val) : null
-          const val = v ? v.toFixed(a.dec || (v > 1000 ? 0 : v > 10 ? 2 : 3)) : 'â'
+          const val = v ? v.toFixed(a.dec || (v > 1000 ? 0 : v > 10 ? 2 : 3)) : '→'
           const chg = a.chg ? Number(a.chg) : null
           const up  = chg > 0
           const textCor = a.cor || C.text
@@ -78,7 +78,7 @@ function MercadoMundialPanel({ macro, tick, dolFeatures }) {
                 <span style={{ fontSize:10, color:textCor, fontFamily:'monospace', fontWeight:600 }}>{val}</span>
                 {chg !== null && (
                   <span style={{ fontSize:8, color:chgCor, marginLeft:3 }}>
-                    {up?'â²':'â¼'}{Math.abs(chg).toFixed(2)}%
+                    {up?'▲':'▼'}{Math.abs(chg).toFixed(2)}%
                   </span>
                 )}
               </div>
@@ -164,7 +164,7 @@ export default function App() {
               <MarketFeaturesPanel mktFeatures={socket.mktFeatures} aiAnalysis={socket.aiAnalysis} />
               <CIPCMEPanel         macro={socket.macro} />
               <MarketContextPanel  ctx={socket.marketContext} />
-              {/* CalibracaoPanel removido â calibração automática pelo AdaptiveLog */}
+              {/* CalibracaoPanel removido → calibração automática pelo AdaptiveLog */}
               <RiskPanel           riskEvent={socket.riskEvent} />
               <CMERangePanel       macro={socket.macro} />
               <TapeThermometer     features={socket.features} mktFeatures={socket.mktFeatures} />
@@ -172,7 +172,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Coluna direita â SuperDOMs */}
+          {/* Coluna direita → SuperDOMs */}
           <div style={{ display:'flex', flexDirection:'column', gap:1, overflow:'hidden', height:'100%' }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, flex:1, overflow:'hidden' }}>
                             <SuperDOM book={socket.book} features={socket.features} levels={80} />
