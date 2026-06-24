@@ -92,8 +92,23 @@ class ProfitClient {
   _onTinyBook(msg) {
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
+    // Atualiza bid/ask local
     if(isWDO){if(msg.side==='BUY')this.lastWDO.bid=msg.price;else this.lastWDO.ask=msg.price;}
     else{if(msg.side==='BUY')this.lastDOL.bid=msg.price;else this.lastDOL.ask=msg.price;}
+    // FIX: emite book sintético com top of book para alimentar SuperDOM
+    // OfferBook desativado (crash MakeOfferBookPointers na DLL 4.0.0.40)
+    // TinyBook é o único feed de book disponível — monta níveis sintéticos
+    const ref = isWDO ? this.lastWDO : this.lastDOL;
+    const bid = ref.bid || 0;
+    const ask = ref.ask || 0;
+    if(!bid || !ask || bid >= ask) return;
+    // Gera 5 níveis sintéticos em torno do bid/ask (sem qty real — usa 1 como placeholder)
+    const TICK = 0.5;
+    const bids = Array.from({length:5},(_,i)=>({price:Math.round((bid-i*TICK)*100)/100,qty:1}));
+    const asks = Array.from({length:5},(_,i)=>({price:Math.round((ask+i*TICK)*100)/100,qty:1}));
+    const book = {symbol:sym,bids,asks,timestamp:Date.now(),source:'tiny_book'};
+    if(isWDO) this.bus.emit('cedro:book:wdo', book);
+    else      this.bus.emit('cedro:book:dol', book);
   }
   _onDaily(msg) {
     const sym=msg.ticker||''; if(!this._isWDO(sym)) return;
