@@ -89,7 +89,22 @@ def _cb_state(t, r):
     tn = ns.get(t, str(t))
     rn = (ms if t == 2 else ls).get(r, str(r))
     log.info(f"STATE [{tn}] -> {rn}")
-    if t == 2 and r == 4: dll_ready.set()
+    if t == 2:  # MARKET_DATA
+        if r == 4:    # CONNECTED
+            dll_ready.set()
+        elif r in (0, 1, 2):  # DISCONNECTED, CONNECTING, WAITING
+            dll_ready.clear()
+    # Atualizar bridge.status imediatamente ao mudar estado DLL
+    if t == 2:
+        try:
+            Path(r'C:\ProfitBridge\bridge.status').write_text(json.dumps({
+                "last_heartbeat": datetime.now().isoformat(),
+                "railway_connected": True,
+                "dll_connected": dll_ready.is_set(),
+                "pid": os.getpid()
+            }))
+        except Exception:
+            pass
     enqueue({"type":"connection_state","conn_type":tn,"result":rn,"timestamp":datetime.now().isoformat()})
 
 def _cb_trade(a, d, n, p, v, q, ba, sa, tt, e):
