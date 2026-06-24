@@ -1,3 +1,4 @@
+let offerBookCount = 0;
 /**
  * API Server
  * - REST endpoints for dashboard queries
@@ -49,7 +50,7 @@ function createServer(bus, engines = {}) {
 
   // ── REST Routes ───────────────────────────────────────────────
   app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: Date.now(), mode: process.env.MOCK_MODE !== 'false' ? 'mock' : 'live' });
+    res.json({ offerBookCount, status: 'ok', timestamp: Date.now(), mode: process.env.MOCK_MODE !== 'false' ? 'mock' : 'live' });
   });
 
   // ── Diagnóstico público ────────────────────────────────────
@@ -258,6 +259,7 @@ function createServer(bus, engines = {}) {
           events.forEach(event => {
             if (!event || !event.type || event.type === 'bridge_auth') return;
             bus.emit('profit:' + event.type, event);
+            if(event.type==='offer_book') offerBookCount++;
           });
         } catch(e) { log.warn('Bridge parse error: ' + e.message); }
       });
