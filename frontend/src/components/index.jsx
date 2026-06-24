@@ -664,7 +664,7 @@ export function MapaForca({ features, trades = [] }) {
 // ──────────────────────────────────────────────────
 const MIN_LOT_DISPLAY = 1
 
-export function SuperDOM({ book, features, levels = 80 }) {
+export function SuperDOM({ book, features, levels = 40 }) {
   const scrollRef = useRef(null)
   const prevPrice = useRef(null)
 
@@ -689,8 +689,8 @@ export function SuperDOM({ book, features, levels = 80 }) {
     const key    = Math.round(price * 100)
     rows.push({
       price,
-      bidQty:    bidMap[key] >= MIN_LOT_DISPLAY ? bidMap[key] : 0,
-      askQty:    askMap[key] >= MIN_LOT_DISPLAY ? askMap[key] : 0,
+      bidQty:    bidMap[key] || 0,
+      askQty:    askMap[key] || 0,
       iceberg:   icebergMap[key] || null,
       isCurrent: i === 0,
     })
@@ -770,7 +770,7 @@ export function SuperDOM({ book, features, levels = 80 }) {
 
 
 // ──────────────────────────────────────────────────
-export function SuperDOMDOL({ dolFeatures, levels = 80 }) {
+export function SuperDOMDOL({ dolFeatures, levels = 40 }) {
   const scrollRef = useRef(null)
   const prevPrice = useRef(null)
 
@@ -793,8 +793,8 @@ export function SuperDOMDOL({ dolFeatures, levels = 80 }) {
     const key    = Math.round(price * 100)
     rows.push({
       price,
-      bidQty:    bidMap[key] >= MIN_LOT_DISPLAY ? bidMap[key] : 0,
-      askQty:    askMap[key] >= MIN_LOT_DISPLAY ? askMap[key] : 0,
+      bidQty:    bidMap[key] || 0,
+      askQty:    askMap[key] || 0,
       isCurrent: i === 0,
     })
   }
