@@ -222,30 +222,32 @@ class MacroEngine {
       req.end();
     });
 
-    // Normaliza um item de /quote (objeto simples, não batch)
+    // Normaliza um item de /quote — aceita close ou previous_close (fora do horário EUA)
     const mkSingle = (item) => {
       if (!item || item.code || item.status === 'error') return null;
-      // /quote retorna: close (último preço), previous_close, percent_change
-      const price = parseFloat(item.close || item.price);
+      // Fora do horário americano, close pode ser "" ou null — usar previous_close
+      const price = parseFloat(item.close) || parseFloat(item.previous_close) || parseFloat(item.price);
       if (!price || isNaN(price)) return null;
+      const prevClose = parseFloat(item.previous_close) || price;
       return {
         price,
-        prevClose: parseFloat(item.previous_close || price),
+        prevClose,
         change:    parseFloat(item.change || 0),
         changePct: parseFloat(item.percent_change || 0),
       };
     };
 
-    // Normaliza resposta batch de /quote (objeto com chaves por símbolo)
+    // Normaliza resposta batch de /quote — aceita close ou previous_close
     const mkBatch = (batch, symbol) => {
       if (!batch || batch.code) return null;
       const item = batch[symbol];
       if (!item || item.code || item.status === 'error') return null;
-      const price = parseFloat(item.close || item.price);
+      const price = parseFloat(item.close) || parseFloat(item.previous_close) || parseFloat(item.price);
       if (!price || isNaN(price)) return null;
+      const prevClose = parseFloat(item.previous_close) || price;
       return {
         price,
-        prevClose: parseFloat(item.previous_close || price),
+        prevClose,
         change:    parseFloat(item.change || 0),
         changePct: parseFloat(item.percent_change || 0),
       };
