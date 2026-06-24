@@ -204,7 +204,19 @@ PROFIT_FORWARD.forEach(evt => {
   bus.on('raw:trade:dol',   (d) => normalizer.processTrade(d));
   // FIX: ProfitClient emite cedro:* em vez de raw:* — adicionar mapeamento para DataNormalizer
   bus.on('cedro:tick:wdo', (d) => normalizer.process(d));
-  bus.on('cedro:tick:dol', (d) => normalizer.process(d));
+  bus.on('cedro:tick:dol', (d) => {
+    normalizer.process(d);
+    // Emite feature:dol com last/bid/ask do DOL para alimentar SuperDOM DOL
+    if (d && d.last) {
+      bus.emit('feature:dol', {
+        last:    d.last,
+        bid:     d.bid  || d.last,
+        ask:     d.ask  || d.last,
+        symbol:  d.symbol || 'DOLN26',
+        source:  'tick',
+      });
+    }
+  });
   bus.on('cedro:book:wdo', (d) => normalizer.processBook(d));
   bus.on('cedro:book:dol', (d) => normalizer.processBook(d));
   bus.on('cedro:trade:wdo',(d) => normalizer.processTrade(d));
