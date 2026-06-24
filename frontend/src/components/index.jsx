@@ -770,12 +770,12 @@ export function SuperDOM({ book, features, levels = 40 }) {
 
 
 // ──────────────────────────────────────────────────
-export function SuperDOMDOL({ dolFeatures, bookDol, levels = 40 }) {
+export function SuperDOMDOL({ dolFeatures, bookDol, dolTick, levels = 40 }) {
   const scrollRef = useRef(null)
   const prevPrice = useRef(null)
 
   // Usar bookDol se disponível, senão gerar sintético baseado no preço DOL
-  const lastPrice = dolFeatures?.last || dolFeatures?.tick?.last || 0
+  const lastPrice = dolTick?.last || dolFeatures?.last || dolFeatures?.tick?.last || 0
   const rawBook   = bookDol || dolFeatures?.book || null
   const book      = React.useMemo(() => {
     if (rawBook && (rawBook.bids?.length > 0 || rawBook.asks?.length > 0)) return rawBook
