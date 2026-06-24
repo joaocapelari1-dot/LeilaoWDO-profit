@@ -32,6 +32,14 @@ if (isMainThread) {
     const worker = new Worker(__filename, { workerData: { isWorker: true } });
     _workerRef = worker;
 
+// FIX bus-pipeline: Forward profit:* do main bus para o worker thread (onde ProfitClient escuta)
+const PROFIT_FORWARD = ['trade','offer_book','theoretical_price','ticker_state','tiny_book','daily','connection_state'];
+PROFIT_FORWARD.forEach(evt => {
+    bus.on('profit:' + evt, (data) => {
+        try { worker.postMessage({ type: 'profit:' + evt, data }); } catch {}
+    });
+});
+
     // Inicia macro worker separado (MacroEngine + MarketContext)
     const macroWorker = new Worker(require('path').join(__dirname, 'macro_worker.js'));
     macroWorker.on('message', ({ type, data }) => {
@@ -132,6 +140,7 @@ if (isMainThread) {
     if (type === 'macro:update') { bus.emit('macro:update', data); return; }
     if (type === 'macro:significant_change') { bus.emit('macro:significant_change', data); return; }
     if (type === 'debug:feature') { bus.emit('feature:wdo', data); return; }
+    if (type.startsWith('profit:')) { bus.emit(type, data); return; } // FIX bus-pipeline
     if (type === 'shutdown') {
       // Desconecta market data limpo antes do main encerrar
       try {
