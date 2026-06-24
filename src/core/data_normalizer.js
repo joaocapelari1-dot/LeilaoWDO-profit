@@ -53,17 +53,12 @@ class DataNormalizer {
   processBook(raw) {
     try {
       const book = this._validateBook(raw);
-      if (!book) return;
+      if (!book) return null;
       this.bus.emit('normalized:book', book);
-      // Broadcast separado por instrumento
-      const isWDO = (book.symbol || '').includes('WDO') || (book.symbol || '').includes('wdo');
-      if (isWDO) {
-        this.bus.emit('book:update', book);      // WDO → SuperDOM WDO
-      } else {
-        this.bus.emit('book:update:dol', book);  // DOL → SuperDOM DOL
-      }
+      return book; // retorna para index.js decidir o canal correto
     } catch (e) {
       this.log.error('Book error:', e.message);
+      return null;
     }
   }
 
