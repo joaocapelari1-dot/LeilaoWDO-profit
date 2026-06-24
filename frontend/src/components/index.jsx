@@ -770,11 +770,11 @@ export function SuperDOM({ book, features, levels = 40 }) {
 
 
 // ──────────────────────────────────────────────────
-export function SuperDOMDOL({ dolFeatures, levels = 40 }) {
+export function SuperDOMDOL({ dolFeatures, bookDol, levels = 40 }) {
   const scrollRef = useRef(null)
   const prevPrice = useRef(null)
 
-  const book      = dolFeatures?.book || {}
+  const book      = bookDol || dolFeatures?.book || {}
   const bids      = book?.bids || []
   const asks      = book?.asks || []
   const lastPrice = dolFeatures?.last || 0
