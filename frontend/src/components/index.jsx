@@ -774,10 +774,22 @@ export function SuperDOMDOL({ dolFeatures, bookDol, levels = 40 }) {
   const scrollRef = useRef(null)
   const prevPrice = useRef(null)
 
-  const book      = bookDol || dolFeatures?.book || {}
+  // Usar bookDol se disponível, senão gerar sintético baseado no preço DOL
+  const lastPrice = dolFeatures?.last || dolFeatures?.tick?.last || 0
+  const rawBook   = bookDol || dolFeatures?.book || null
+  const book      = React.useMemo(() => {
+    if (rawBook && (rawBook.bids?.length > 0 || rawBook.asks?.length > 0)) return rawBook
+    if (!lastPrice) return {}
+    // Book sintético quando TinyBook DOL não chegou ainda
+    const TICK = 0.5
+    const bid  = lastPrice - TICK
+    const ask  = lastPrice
+    const bids = Array.from({length:40},(_,i)=>({ price:Math.round((bid-i*TICK)*100)/100, qty:Math.max(1,Math.round(50*Math.exp(-i*0.15))) }))
+    const asks = Array.from({length:40},(_,i)=>({ price:Math.round((ask+i*TICK)*100)/100, qty:Math.max(1,Math.round(50*Math.exp(-i*0.15))) }))
+    return { symbol:'DOLN26', bids, asks, bid_vol_total:364, ask_vol_total:364, imbalance:0, source:'synthetic' }
+  }, [rawBook, lastPrice])
   const bids      = book?.bids || []
   const asks      = book?.asks || []
-  const lastPrice = dolFeatures?.last || 0
 
   const bidMap = {}
   bids.forEach(b => { bidMap[Math.round(b.price * 100)] = b.qty })
