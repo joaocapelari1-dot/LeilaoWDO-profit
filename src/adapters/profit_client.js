@@ -1,6 +1,6 @@
 'use strict';
 /**
- * ProfitClient v3.0 â Arquitetura Invertida
+ * ProfitClient v3.0 Ã¢ÂÂ Arquitetura Invertida
  * VPS conecta no Railway via /bridge. Este adapter escuta eventos profit:* no bus.
  */
 const WDO_SYMBOLS = ['WDOFUT','WDON26','WDOQ26','WDOV26','WDO'];
@@ -12,7 +12,7 @@ class ProfitClient {
     this.lastWDO={}; this.lastDOL={}; this.theorWDO={price:0,qty:0}; this.theorDOL={price:0,qty:0};
     this.auctionActive={};
   }
-  start() { console.log('[PROFIT-CLIENT] v3.0 Modo Invertido â aguardando VPS em /bridge'); this._listenBus(); }
+  start() { console.log('[PROFIT-CLIENT] v3.0 Modo Invertido Ã¢ÂÂ aguardando VPS em /bridge'); this._listenBus(); }
   disconnect() {}
   _isWDO(s){return WDO_SYMBOLS.some(x=>s.includes(x));}
   _isDOL(s){return DOL_SYMBOLS.some(x=>s.includes(x));}
@@ -55,7 +55,7 @@ class ProfitClient {
   }
   _onTickerState(msg) {
     const sym=msg.ticker||''; this.auctionActive[sym]=msg.in_auction||false;
-    if(msg.in_auction) console.log(`[PROFIT-CLIENT] ð LEILÃO ATIVO: ${sym}`);
+    if(msg.in_auction) console.log(`[PROFIT-CLIENT] Ã°ÂÂÂ LEILÃÂO ATIVO: ${sym}`);
     this.bus.emit('cedro:ticker_state',{symbol:sym,state:msg.state,in_auction:msg.in_auction,timestamp:msg.timestamp});
   }
   _onOfferBook(msg) {
