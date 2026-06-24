@@ -107,8 +107,8 @@ if (isMainThread) {
   // Envia snapshots para main via postMessage (throttled)
   // ════════════════════════════════════════════════════════════
   // ── Market Data Provider ─────────────────────────────────────────
-  const MARKET_PROVIDER = (process.env.MARKET_PROVIDER || 'CEDRO').toUpperCase();
-  const { CedroAdapter } = require('./adapters/cedro_adapter');
+  // MARKET_PROVIDER sempre PROFIT - ProfitDLL via ProfitBridge
+  // CedroAdapter removido - usando apenas ProfitClient (MARKET_PROVIDER=PROFIT)
   const { ProfitClient } = require('./adapters/profit_client');
   const { DataNormalizer }      = require('./core/data_normalizer');
   const { FeatureEngine }       = require('./core/feature_engine');
@@ -135,9 +135,7 @@ if (isMainThread) {
     if (type === 'shutdown') {
       // Desconecta market data limpo antes do main encerrar
       try {
-        if (global._cedroAdapter?.liveClient) global._cedroAdapter.liveClient.disconnect(); // Cedro
-        else if (global._cedroAdapter?.disconnect) global._cedroAdapter.disconnect();       // Profit
-        else if (adapter?.liveClient) adapter.liveClient.disconnect();
+        if (global._cedroAdapter?.disconnect) global._cedroAdapter.disconnect(); // ProfitClient
         else if (adapter?.disconnect) adapter.disconnect();
       } catch(e) {}
       return;
@@ -172,16 +170,10 @@ if (isMainThread) {
   // macro:update enviado pelo macro_worker.js
 
   // Inicializar todos os engines
-  let adapter = null;
-  if (MARKET_PROVIDER === 'PROFIT') {
-    adapter = new ProfitClient(bus);
-    global._cedroAdapter = adapter;
-    log.info('📡 Market Data: PROFIT DLL via ProfitBridge');
-  } else {
-    adapter = new CedroAdapter(bus);
-    global._cedroAdapter = adapter;
-    log.info('📡 Market Data: CEDRO Crystal');
-  }
+  // Sempre usa ProfitClient (MARKET_PROVIDER=PROFIT obrigatorio)
+  let adapter = new ProfitClient(bus);
+  global._cedroAdapter = adapter;
+  log.info('📡 Market Data: PROFIT DLL via ProfitBridge');
   const normalizer = new DataNormalizer(bus);
   const mktFeatures= new MarketFeaturesEngine(bus);
   const mmDetector = new MarketMakerDetector(bus);
