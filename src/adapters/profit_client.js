@@ -1,6 +1,6 @@
 'use strict';
 /**
- * ProfitClient v3.0 — Arquitetura Invertida
+ * ProfitClient v3.0 â Arquitetura Invertida
  * VPS conecta no Railway via /bridge. Este adapter escuta eventos profit:* no bus.
  */
 const WDO_SYMBOLS = ['WDOFUT','WDON26','WDOQ26','WDOV26','WDO'];
@@ -12,7 +12,7 @@ class ProfitClient {
     this.lastWDO={}; this.lastDOL={}; this.theorWDO={price:0,qty:0}; this.theorDOL={price:0,qty:0};
     this.auctionActive={};
   }
-  start() { console.log('[PROFIT-CLIENT] v3.0 Modo Invertido — aguardando VPS em /bridge'); this._listenBus(); }
+  start() { console.log('[PROFIT-CLIENT] v3.0 Modo Invertido â aguardando VPS em /bridge'); this._listenBus(); }
   disconnect() {}
   _isWDO(s){return WDO_SYMBOLS.some(x=>s.includes(x));}
   _isDOL(s){return DOL_SYMBOLS.some(x=>s.includes(x));}
@@ -55,18 +55,35 @@ class ProfitClient {
   }
   _onTickerState(msg) {
     const sym=msg.ticker||''; this.auctionActive[sym]=msg.in_auction||false;
-    if(msg.in_auction) console.log(`[PROFIT-CLIENT] 🔔 LEILÃO ATIVO: ${sym}`);
+    if(msg.in_auction) console.log(`[PROFIT-CLIENT] ð LEILÃO ATIVO: ${sym}`);
     this.bus.emit('cedro:ticker_state',{symbol:sym,state:msg.state,in_auction:msg.in_auction,timestamp:msg.timestamp});
   }
   _onOfferBook(msg) {
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
     const book=isWDO?this.bookWDO:this.bookDOL;
-    if(msg.action==='FULL_BOOK'){book.bids={};book.asks={};return;}
+    if(msg.action==='FULL_BOOK'){
+    if(!book._snapActive){book.bids={};book.asks={};book._snapActive=true;}
+    if(msg.price==null) return;
+    const key=Math.round(msg.price*100);
+    const side=msg.side==='BUY'?book.bids:book.asks;
+    const prev=side[key]?.qty||0;
+    side[key]={price:msg.price,qty:prev+(msg.quantity||0),agent:msg.agent||0};
+    const bids=Object.values(book.bids).sort((a,b)=>b.price-a.price).slice(0,20);
+    const asks=Object.values(book.asks).sort((a,b)=>a.price-b.price).slice(0,20);
+    if(isWDO)this.bus.emit('cedro:book:wdo',{symbol:sym,bids,asks,timestamp:Date.now()});
+    else this.bus.emit('cedro:book:dol',{symbol:sym,bids,asks,timestamp:Date.now()});
+    return;
+    }
+    book._snapActive=false;
     if(msg.price==null) return;
     const key=Math.round(msg.price*100);
     if(msg.action==='DELETE'||!msg.quantity){if(msg.side==='BUY')delete book.bids[key];else delete book.asks[key];}
-    else{const e={price:msg.price,qty:msg.quantity,agent:msg.agent||0};if(msg.side==='BUY')book.bids[key]=e;else book.asks[key]=e;}
+    else{
+    const side=msg.side==='BUY'?book.bids:book.asks;
+    if(msg.action==='INSERT'){const prev=side[key]?.qty||0;side[key]={price:msg.price,qty:prev+msg.quantity,agent:msg.agent||0};}
+    else{side[key]={price:msg.price,qty:msg.quantity,agent:msg.agent||0};}
+    }
     const bids=Object.values(book.bids).sort((a,b)=>b.price-a.price).slice(0,20);
     const asks=Object.values(book.asks).sort((a,b)=>a.price-b.price).slice(0,20);
     if(isWDO)this.bus.emit('cedro:book:wdo',{symbol:sym,bids,asks,timestamp:Date.now()});
