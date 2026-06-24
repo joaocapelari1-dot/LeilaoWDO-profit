@@ -66,7 +66,7 @@ class MacroEngine {
     const m    = brt.getUTCMinutes();
     const mins = h * 60 + m;
     const start845 = 8 * 60 + 45;
-    const close18  = 18 * 60;
+    const close18  = 18 * 60 + 30; // estender até 18h30 para pegar fechamento
 
     const diaSem = brt.getUTCDay();
     const diaUtil = diaSem >= 1 && diaSem <= 5;
@@ -142,14 +142,13 @@ class MacroEngine {
     this.bus.emit('macro:bom_dia', { hora: new Date().toLocaleTimeString('pt-BR') });
     this.running = true;
     this.mode    = 'normal';
-    // Aguarda 90s antes da 1ª call — evita estouro em redeploy
-    this.log.info('Macro: aguardando 90s antes da 1ª call Twelve Data...');
+    // Aguarda 5s antes da 1ª call — tempo mínimo para Railway estabilizar
     setTimeout(() => {
       if (this.running) {
         this._fetch();
         this.timer = setInterval(() => this._fetch(), INTERVAL_NORMAL);
       }
-    }, 90000);
+    }, 5000);
   }
 
   // ── Fetch Principal ────────────────────────────────────────
@@ -162,7 +161,7 @@ class MacroEngine {
         return;
       }
       // Throttle: mín 60s entre calls
-      if (this._lastTwelveFetch && (now - this._lastTwelveFetch) < 60000) {
+      if (this._lastTwelveFetch && (now - this._lastTwelveFetch) < 240000) {
         this.bus.emit('macro:update', this.snapshot);
         return;
       }
