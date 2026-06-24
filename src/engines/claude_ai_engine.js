@@ -92,7 +92,7 @@ class ClaudeAIEngine {
   // ── Janela encerrada — sem pós-abertura, sem estados ──────────
   _sairJanela() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
-    this.log.info('Claude IA: janela encerrada — sistema em standby');
+    // standby silencioso — não logar fora da janela (evita spam no log)
   }
 
   // ── Agendamento por horário — inicia às 8h55 sem depender de ticks ──
