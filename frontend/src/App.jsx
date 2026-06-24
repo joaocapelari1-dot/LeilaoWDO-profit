@@ -27,14 +27,14 @@ function Clock() {
 function LeilaoStatus({ auctionState, connected }) {
   const state  = auctionState?.to || 'IDLE'
   const online = connected && ['AUCTION','PRICE_DISCOVERY','SIGNAL_READY','PRE_OPEN'].includes(state)
-  // Verificar dia útil e horário BRT
+  // Verificar dia Ãºtil e horÃ¡rio BRT
   const _brt    = new Date(Date.now() - 3 * 60 * 60 * 1000)
   const _dia    = _brt.getUTCDay() // 0=dom, 6=sab
   const _hora   = _brt.getUTCHours() + _brt.getUTCMinutes() / 60
   const _diaUtil = _dia >= 1 && _dia <= 5
   const _mercadoAberto = _diaUtil && _hora >= 9.0 && _hora < 18.0
   const color  = online ? '#22c55e' : _mercadoAberto ? '#f59e0b' : '#ef4444'
-  const label  = online ? 'LEILÃO ONLINE' : (!_diaUtil || !_mercadoAberto) ? 'AGUARDANDO' : state === 'CONTINUOUS' ? 'MERCADO ABERTO' : state === 'CLOSING' ? 'FECHAMENTO' : 'AGUARDANDO'
+  const label  = online ? 'LEILÃO ONLINE' : (!_diaUtil || !_mercadoAberto) ? 'AGUARDANDO' : state === 'CONTINUOUS' ? 'MERCADO ABERTO' : state === 'CLOSING' ? 'FECHAMENTO' : 'AGUARDANDO'
   return (
     <div style={{ display:'flex', alignItems:'center', gap:6, padding:'3px 10px', background:`${color}15`, border:`1px solid ${color}40`, borderRadius:20 }}>
       <div style={{ width:7, height:7, borderRadius:'50%', background:color, boxShadow:`0 0 6px ${color}`, animation: online ? 'pulse 1.5s infinite' : 'none' }} />
@@ -46,7 +46,7 @@ function LeilaoStatus({ auctionState, connected }) {
 function MercadoMundialPanel({ macro, tick, dolFeatures }) {
   const C = { panel:'#0c1219', border:'#1e2832', text:'#e2e8f0', muted:'#64748b', green:'#22c55e', red:'#ef4444', gold:'#f59e0b', cyan:'#06b6d4' }
 
-  const wdoPrice = tick?.theor_price || tick?.last  // Preferir preço teórico durante leilão
+  const wdoPrice = tick?.theor_price || tick?.last  // Preferir preÃ§o teÃ³rico durante leilÃ£o
   const dolPrice = dolFeatures?.last || dolFeatures?.tick?.last
 
   const ativos = [
@@ -57,7 +57,7 @@ function MercadoMundialPanel({ macro, tick, dolFeatures }) {
     { label:'TREAS 10Y', val: macro?.treasury10y?.price, chg: macro?.treasury10y?.changePct, inv: false, dec:2 },
     { label:'VIX',       val: macro?.vix?.price,         chg: macro?.vix?.changePct,       inv: true    },
     { label:'S&P 500',   val: macro?.sp500?.price,       chg: macro?.sp500?.changePct,     inv: true    },
-    { label:'PETRÓLEO',  val: macro?.oilWTI?.price,      chg: macro?.oilWTI?.changePct,    inv: true    },
+    { label:'PETRÃLEO',  val: macro?.oilWTI?.price,      chg: macro?.oilWTI?.changePct,    inv: true    },
   ]
 
   return (
@@ -66,7 +66,7 @@ function MercadoMundialPanel({ macro, tick, dolFeatures }) {
       <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
         {ativos.map((a, i) => {
           const v   = a.val ? Number(a.val) : null
-          const val = v ? v.toFixed(a.dec || (v > 1000 ? 0 : v > 10 ? 2 : 3)) : '—'
+          const val = v ? v.toFixed(a.dec || (v > 1000 ? 0 : v > 10 ? 2 : 3)) : 'â'
           const chg = a.chg ? Number(a.chg) : null
           const up  = chg > 0
           const textCor = a.cor || C.text
@@ -78,7 +78,7 @@ function MercadoMundialPanel({ macro, tick, dolFeatures }) {
                 <span style={{ fontSize:10, color:textCor, fontFamily:'monospace', fontWeight:600 }}>{val}</span>
                 {chg !== null && (
                   <span style={{ fontSize:8, color:chgCor, marginLeft:3 }}>
-                    {up?'▲':'▼'}{Math.abs(chg).toFixed(2)}%
+                    {up?'â²':'â¼'}{Math.abs(chg).toFixed(2)}%
                   </span>
                 )}
               </div>
@@ -164,7 +164,7 @@ export default function App() {
               <MarketFeaturesPanel mktFeatures={socket.mktFeatures} aiAnalysis={socket.aiAnalysis} />
               <CIPCMEPanel         macro={socket.macro} />
               <MarketContextPanel  ctx={socket.marketContext} />
-              {/* CalibracaoPanel removido — calibração automática pelo AdaptiveLog */}
+              {/* CalibracaoPanel removido â calibraÃ§Ã£o automÃ¡tica pelo AdaptiveLog */}
               <RiskPanel           riskEvent={socket.riskEvent} />
               <CMERangePanel       macro={socket.macro} />
               <TapeThermometer     features={socket.features} mktFeatures={socket.mktFeatures} />
@@ -172,27 +172,11 @@ export default function App() {
             </div>
           </div>
 
-          {/* Coluna direita — SuperDOMs */}
+          {/* Coluna direita â SuperDOMs */}
           <div style={{ display:'flex', flexDirection:'column', gap:1, overflow:'hidden', height:'100%' }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, flex:1, overflow:'hidden' }}>
-              {/* Durante leilão (8h55-9h05): Mapa de Força em vez do SuperDOM */}
-              {(() => {
-                const hora = new Date().getHours() + new Date().getMinutes()/60
-                const emLeilao = hora >= 8.917 && hora <= 9.083
-                return emLeilao ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <MapaForca features={socket.features} />
-                    <div style={{ color: '#64748b', fontSize: 9, textAlign: 'center' }}>
-                      SuperDOM indisponível durante leilão — usando Tape + Icebergs
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <SuperDOM book={socket.book} features={socket.features} levels={80} />
-                    <SuperDOMDOL dolFeatures={socket.dolFeatures} levels={80} />
-                  </>
-                )
-              })()}
+                            <SuperDOM book={socket.book} features={socket.features} levels={80} />
+              <SuperDOMDOL dolFeatures={socket.dolFeatures} levels={80} />
             </div>
           </div>
 
