@@ -7,6 +7,7 @@ export function useWDOSocket(token) {
   const [tick, setTick]               = useState(null)
   const [book, setBook]               = useState(null)
   const [bookDol, setBookDol]           = useState(null)
+  const [dolTick, setDolTick]           = useState(null)
   const [features, setFeatures]       = useState(null)
   const [auctionState, setAuction]    = useState(null)
   const [signal, setSignal]           = useState(null)
@@ -78,6 +79,7 @@ export function useWDOSocket(token) {
             case 'book':          setBook(msg.data);     break
             case 'book_dol':      setBookDol(msg.data);  break
             case 'features_dol':  if(msg.data) setDolFeatures(msg.data); break
+            case 'tick_dol':      if(msg.data) setDolTick(msg.data); break
             case 'context_gap':
               setContext(prev => ({ ...prev, gap: msg.data })); break
             case 'context_calendar':
@@ -129,5 +131,5 @@ export function useWDOSocket(token) {
   // Merge historical trades + live ticks for chart
   const fullTickHistory = [...histTrades, ...(tickHistory || [])]
 
-  return { connected, tick, book, bookDol, features, mktFeatures, auctionState, signal, aiAnalysis, riskEvent, fills, tickHistory: fullTickHistory, tape, windowState, snapshots, dolFeatures, confluence, marketContext, adaptive: adaptive ? { ...adaptive, historico, journal, balanco } : { historico, journal, balanco }, esgotamento, macro, symbols }
+  return { connected, tick, book, bookDol, dolTick, features, mktFeatures, auctionState, signal, aiAnalysis, riskEvent, fills, tickHistory: fullTickHistory, tape, windowState, snapshots, dolFeatures, confluence, marketContext, adaptive: adaptive ? { ...adaptive, historico, journal, balanco } : { historico, journal, balanco }, esgotamento, macro, symbols }
 }
