@@ -217,8 +217,16 @@ PROFIT_FORWARD.forEach(evt => {
       });
     }
   });
-  bus.on('cedro:book:wdo', (d) => normalizer.processBook(d));
-  bus.on('cedro:book:dol', (d) => normalizer.processBook(d));
+  // Book WDO → book:update → broadcast('book') → SuperDOM WDO
+  bus.on('cedro:book:wdo', (d) => {
+    const book = normalizer.processBook(d);
+    if (book) bus.emit('book:update', book);
+  });
+  // Book DOL → book:update:dol → broadcast('book_dol') → SuperDOM DOL
+  bus.on('cedro:book:dol', (d) => {
+    const book = normalizer.processBook(d);
+    if (book) bus.emit('book:update:dol', book);
+  });
   bus.on('cedro:trade:wdo',(d) => normalizer.processTrade(d));
   bus.on('cedro:trade:dol',(d) => normalizer.processTrade(d));
   bus.on('normalized:tick', (d) => features.onTick(d));
