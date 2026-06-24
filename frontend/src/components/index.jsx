@@ -22,7 +22,7 @@ const panel  = { background: C.panel, border: `1px solid ${C.border}`, borderRad
 const label  = { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: C.muted, marginBottom: 6, display: 'block' }
 const mono   = { fontFamily: "'JetBrains Mono', monospace" }
 
-// —— Sound —————————————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 function playSignalSound(direction) {
   try {
     const ctx  = new (window.AudioContext || window.webkitAudioContext)()
@@ -58,7 +58,7 @@ export function useSignalAlert(signal) {
   }, [signal])
 }
 
-// —— Candlestick Canvas ————————————————————————————————————————
+// ──────────────────────────────────────────────────
 function buildCandles(tickHistory, periodMs = 5000) {
   if (!tickHistory?.length) return []
   const buckets = {}
@@ -138,23 +138,23 @@ function CandlestickCanvas({ candles, signal }) {
   return <canvas ref={ref} width={600} height={155} style={{ width:'100%', height:155, display:'block' }} />
 }
 
-// —— StatusBar —————————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function StatusBar({ tick, connected }) {
   return (
     <div style={{ display:'flex', gap:20, fontSize:11, ...mono }}>
-      <span style={{ color:C.muted }}>LAST <span style={{ color:C.text }}>{tick?.last?.toFixed(2)||'—'}</span></span>
-      <span style={{ color:C.muted }}>VOL <span style={{ color:C.text }}>{tick?.cum_vol?.toLocaleString()||'—'}</span></span>
-      <span style={{ color:C.muted }}>PHASE <span style={{ color:C.gold }}>{tick?.phase?.toUpperCase()||'—'}</span></span>
+      <span style={{ color:C.muted }}>LAST <span style={{ color:C.text }}>{tick?.last?.toFixed(2)||'—'}</span></span>
+      <span style={{ color:C.muted }}>VOL <span style={{ color:C.text }}>{tick?.cum_vol?.toLocaleString()||'—'}</span></span>
+      <span style={{ color:C.muted }}>PHASE <span style={{ color:C.gold }}>{tick?.phase?.toUpperCase()||'—'}</span></span>
     </div>
   )
 }
 
-// —— PricePanel ————————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function PricePanel({ tick, features }) {
   return (
     <div style={panel}>
       <span style={label}>WDO · PRICE</span>
-      <div style={{ fontSize:28, fontWeight:700, color:C.text, letterSpacing:-1, ...mono }}>{tick?.last?.toFixed(2)||'—.—'}</div>
+      <div style={{ fontSize:28, fontWeight:700, color:C.text, letterSpacing:-1, ...mono }}>{tick?.last?.toFixed(2)||'—.—'}</div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:10 }}>
         <Kv label="BID"        value={tick?.bid?.toFixed(2)}          color={C.green} />
         <Kv label="ASK"        value={tick?.ask?.toFixed(2)}          color={C.red} />
@@ -167,7 +167,7 @@ export function PricePanel({ tick, features }) {
   )
 }
 
-// —— FlowPanel —————————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function FlowPanel({ features }) {
   const aggRatio = features?.aggRatio || 0.5
   const pct      = Math.round(aggRatio * 100)
@@ -186,7 +186,7 @@ export function FlowPanel({ features }) {
         </div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
-        <Kv label="FLOW Δ"   value={delta>0?`+${delta}`:delta} color={delta>0?C.green:C.red} />
+        <Kv label="FLOW Δ"   value={delta>0?`+${delta}`:delta} color={delta>0?C.green:C.red} />
         <Kv label="BK IMBAL" value={imb.toFixed(3)} color={imb>0.1?C.green:imb<-0.1?C.red:C.muted} />
         <Kv label="BUY VOL"  value={features?.buyVol}  color={C.green} />
         <Kv label="SELL VOL" value={features?.sellVol} color={C.red} />
@@ -195,7 +195,7 @@ export function FlowPanel({ features }) {
   )
 }
 
-// —— AuctionPanel ——————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function AuctionPanel({ auctionState, features, signal }) {
   const auction = features?.auction || {}
   const state   = auctionState?.to || 'IDLE'
@@ -247,7 +247,7 @@ export function AuctionPanel({ auctionState, features, signal }) {
             </div>
           )}
           {signal.sizedBy === 'claude_dinamico' && (
-            <div style={{ marginTop:4, fontSize:8, color:C.blue }}>ð¤ Alvo calculado pelo Claude</div>
+            <div style={{ marginTop:4, fontSize:8, color:C.blue }}>ð¤ Alvo calculado pelo Claude</div>
           )}
         </div>
       )}
@@ -255,9 +255,9 @@ export function AuctionPanel({ auctionState, features, signal }) {
   )
 }
 
-// —— PriceChart com timeframes + preço DOL —————————————————————
+// ──────────────────────────────────────────────────
 const TIMEFRAMES = [
-  { label: 'LEILÁO 5s', ms: 5000,   max: 120 },
+  { label: 'LEILÃO 5s', ms: 5000,   max: 120 },
   { label: '1M',        ms: 60000,  max: 120 },
   { label: '5M',        ms: 300000, max: 80  },
   { label: '15M',       ms: 900000, max: 60  },
@@ -299,7 +299,7 @@ export function PriceChart({ tickHistory, features, signal, tick, dolFeatures })
             <div style={{ fontSize:8, color:C.muted, letterSpacing:1 }}>WDO MINI</div>
             <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
               <span style={{ fontSize:13, fontWeight:700, color:C.text, fontFamily:'monospace' }}>
-                {wdoPrice?.toFixed(2) || '—'}
+                {wdoPrice?.toFixed(2) || '—'}
               </span>
               {wdoChg !== 0 && (
                 <span style={{ fontSize:9, color: wdoChg > 0 ? C.green : C.red, fontFamily:'monospace' }}>
@@ -313,7 +313,7 @@ export function PriceChart({ tickHistory, features, signal, tick, dolFeatures })
             <div style={{ fontSize:8, color:C.muted, letterSpacing:1 }}>DOL CHEIO</div>
             <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
               <span style={{ fontSize:13, fontWeight:700, color:C.gold, fontFamily:'monospace' }}>
-                {dolPrice?.toFixed(2) || '—'}
+                {dolPrice?.toFixed(2) || '—'}
               </span>
               {dolChg !== 0 && (
                 <span style={{ fontSize:9, color: dolChg > 0 ? C.green : C.red, fontFamily:'monospace' }}>
@@ -333,11 +333,11 @@ export function PriceChart({ tickHistory, features, signal, tick, dolFeatures })
   )
 }
 
-// —— AIPanel ———————————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function AIPanel({ aiAnalysis }) {
   if (!aiAnalysis) return (
     <div style={panel}>
-      <span style={label}>ANÁLISE</span>
+      <span style={label}>ANÁLISE</span>
       <div style={{ color:C.dim, fontSize:11 }}>Aguardando dados...</div>
     </div>
   )
@@ -356,7 +356,7 @@ export function AIPanel({ aiAnalysis }) {
   return (
     <div style={panel}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-        <span style={label}>ANÁLISE</span>
+        <span style={label}>ANÁLISE</span>
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
           <span style={{ fontSize:9, color: ai.source==='stub' ? C.gold : C.blue }}>{(ai.source||'').toUpperCase()}</span>
           {ai.emJanela && <span style={{ fontSize:8, color:C.gold, background:'rgba(245,158,11,0.15)', padding:'1px 4px', borderRadius:2 }}>JANELA 1s</span>}
@@ -368,19 +368,19 @@ export function AIPanel({ aiAnalysis }) {
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:8 }}>
-        <Kv label="DIREÁÁO"   value={dir.toUpperCase()} color={dirColor} />
-        <Kv label="CONFIANÁA" value={`${confPct}%`} color={confPct>=85?C.green:confPct>=70?C.gold:C.red} />
-        <Kv label="ICEBERG"   value={iceOn ? 'ð§ ATIVO' : '—'} color={iceOn ? C.cyan : C.dim} />
+        <Kv label="DIREÇÃO"   value={dir.toUpperCase()} color={dirColor} />
+        <Kv label="CONFIANÇA" value={`${confPct}%`} color={confPct>=85?C.green:confPct>=70?C.gold:C.red} />
+        <Kv label="ICEBERG"   value={iceOn ? 'ð§ ATIVO' : '—'} color={iceOn ? C.cyan : C.dim} />
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:8 }}>
-        <Kv label="DOLÁWDO" value={dolWdo.toUpperCase()} color={dolWdo==='alinhado'?C.green:dolWdo==='divergente'?C.red:C.muted} />
+        <Kv label="DOL×WDO" value={dolWdo.toUpperCase()} color={dolWdo==='alinhado'?C.green:dolWdo==='divergente'?C.red:C.muted} />
         <Kv label="MACRO"   value={macroAl.toUpperCase()} color={macroAl==='favoravel'?C.green:macroAl==='adverso'?C.red:C.muted} />
       </div>
 
-      {/* —— Termômetro de confiança —— */}
+      {/* —— Termômetro de confiança —— */}
       <div style={{ marginBottom:8 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-          <span style={{ fontSize:10, color:C.dim }}>CONFIANÁA</span>
+          <span style={{ fontSize:10, color:C.dim }}>CONFIANÇA</span>
           <span style={{ fontSize:18, fontWeight:700, color:confPct>=85?C.green:confPct>=70?C.gold:C.red, letterSpacing:1 }}>{confPct}%</span>
         </div>
         <div style={{ height:18, background:C.border, borderRadius:4, position:'relative', overflow:'hidden' }}>
@@ -440,25 +440,25 @@ export function AIPanel({ aiAnalysis }) {
             {ai.distanciaAlvo > 0 && <span>Alvo: <span style={{ color:C.green }}>{ai.distanciaAlvo} ticks</span></span>}
             {ai.distanciaStop > 0 && <span>Stop: <span style={{ color:C.red }}>{ai.distanciaStop} ticks</span></span>}
           </div>
-          <div style={{ fontSize:8, color:C.dim, marginTop:2 }}>ð MONITORAMENTO PÁS-ABERTURA ATÁ 9h05</div>
+          <div style={{ fontSize:8, color:C.dim, marginTop:2 }}>ð MONITORAMENTO PÓS-ABERTURA ATÉ 9h05</div>
         </div>
       )}
 
       {/* Target info when signal active */}
       {ai.alvo1Ticks > 0 && ai.veredito !== 'NAO_OPERAR' && (
         <div style={{ background:'rgba(34,197,94,0.08)', border:`1px solid ${C.green}30`, borderRadius:4, padding:'8px 10px', marginBottom:8 }}>
-          <div style={{ fontSize:9, color:C.muted, marginBottom:4, letterSpacing:1 }}>ALVO 1 DINÁMICO</div>
+          <div style={{ fontSize:9, color:C.muted, marginBottom:4, letterSpacing:1 }}>ALVO 1 DINÂMICO</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
             <Kv label="TICKS"     value={ai.alvo1Ticks} color={C.green} />
             <Kv label="RR"        value={ai.rr?.toFixed(1)+'x'} color={C.gold} />
-            <Kv label="CONF ALVO" value={ai.alvo1Confianca ? (ai.alvo1Confianca*100).toFixed(0)+'%' : '—'} color={C.green} />
+            <Kv label="CONF ALVO" value={ai.alvo1Confianca ? (ai.alvo1Confianca*100).toFixed(0)+'%' : '—'} color={C.green} />
           </div>
           {ai.amplitudeEsperada && <div style={{ fontSize:9, color:C.muted, marginTop:4 }}>Amplitude: {ai.amplitudeEsperada}</div>}
           {ai.baseCalculoAlvo   && <div style={{ fontSize:9, color:C.dim,   marginTop:2 }}>{ai.baseCalculoAlvo}</div>}
           <div style={{ display:'flex', gap:6, marginTop:6, flexWrap:'wrap' }}>
-            {ai.absorcaoDetectada && <span style={{ fontSize:8, color:C.green, background:'rgba(34,197,94,0.15)', padding:'1px 5px', borderRadius:3 }}>ABSORÁÁO —</span>}
+            {ai.absorcaoDetectada && <span style={{ fontSize:8, color:C.green, background:'rgba(34,197,94,0.15)', padding:'1px 5px', borderRadius:3 }}>ABSORÇÃO ✓</span>}
             {ai.escoraDetectada   && <span style={{ fontSize:8, color:C.red,   background:'rgba(239,68,68,0.15)',  padding:'1px 5px', borderRadius:3 }}>ESCORA @ {ai.escoraPreco?.toFixed(2)}</span>}
-            {ai.exaustaoDetectada && <span style={{ fontSize:8, color:C.gold,  background:'rgba(245,158,11,0.15)', padding:'1px 5px', borderRadius:3 }}>EXAUSTÁO — ï¸</span>}
+            {ai.exaustaoDetectada && <span style={{ fontSize:8, color:C.gold,  background:'rgba(245,158,11,0.15)', padding:'1px 5px', borderRadius:3 }}>EXAUSTÃO ⚠️</span>}
           </div>
           {ai.leituraTape && <div style={{ fontSize:9, color:C.dim, marginTop:4, fontStyle:'italic' }}>{ai.leituraTape}</div>}
         </div>
@@ -466,7 +466,7 @@ export function AIPanel({ aiAnalysis }) {
 
       <div style={{ fontSize:10, color:C.muted, lineHeight:1.6 }}>
         {ai.reasoning      && <div style={{ marginBottom:3, color:C.text }}>{ai.reasoning}</div>}
-        {ai.leituraLeilao  && <div><span style={{ color:C.blue }}>LEILÁO</span> {ai.leituraLeilao}</div>}
+        {ai.leituraLeilao  && <div><span style={{ color:C.blue }}>LEILÃO</span> {ai.leituraLeilao}</div>}
         {ai.leituraMacro   && <div><span style={{ color:C.gold }}>MACRO</span> {ai.leituraMacro}</div>}
         {ai.riscoPrincipal && <div><span style={{ color:C.red }}>RISCO</span> {ai.riscoPrincipal}</div>}
         {ai.leituraTape    && <div style={{ marginTop:4 }}><span style={{ color:C.cyan }}>TAPE</span> {ai.leituraTape}</div>}
@@ -475,7 +475,7 @@ export function AIPanel({ aiAnalysis }) {
   )
 }
 
-// —— RiskPanel —————————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function RiskPanel({ riskEvent }) {
   return (
     <div style={panel}>
@@ -484,7 +484,7 @@ export function RiskPanel({ riskEvent }) {
       {riskEvent && (
         <div style={{ background:riskEvent.type==='risk_approved'?C.greenDim:C.redDim, border:`1px solid ${riskEvent.type==='risk_approved'?C.green:C.red}`, borderRadius:4, padding:'8px 10px', fontSize:11 }}>
           <div style={{ fontWeight:700, color:riskEvent.type==='risk_approved'?C.green:C.red, marginBottom:4, letterSpacing:1 }}>
-            {riskEvent.type==='risk_approved'?'— APROVADO':'— REJEITADO'}
+            {riskEvent.type==='risk_approved'?'✓ APROVADO':'✗ REJEITADO'}
           </div>
           {riskEvent.reason && <div style={{ color:C.muted, fontSize:10 }}>{riskEvent.reason}</div>}
           {riskEvent.contracts && <div style={{ marginTop:4, color:C.text, fontSize:10 }}>{riskEvent.contracts}x · Stop {riskEvent.stopPrice} · Alvo {riskEvent.targetPrice}</div>}
@@ -494,7 +494,7 @@ export function RiskPanel({ riskEvent }) {
   )
 }
 
-// —— ExecutionPanel ————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function ExecutionPanel({ fills }) {
   return (
     <div style={panel}>
@@ -515,7 +515,7 @@ export function ExecutionPanel({ fills }) {
 }
 
 
-// —— Mapa de Força — Suporte/Resistência via Tape + Icebergs ——————————————
+// ──────────────────────────────────────────────────
 export function MapaForca({ features, trades = [] }) {
   const C = {
     bg: '#080c10', panel: '#0c1219', border: '#1e2832',
@@ -550,7 +550,7 @@ export function MapaForca({ features, trades = [] }) {
     return (
       <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12 }}>
         <div style={{ color: C.muted, fontSize: 11, textAlign: 'center', padding: '20px 0' }}>
-          ð¯ Aguardando dados do tape...
+          🎯 Aguardando dados do tape...
         </div>
       </div>
     )
@@ -579,7 +579,7 @@ export function MapaForca({ features, trades = [] }) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ color: C.cyan, fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>
-          ð¯ MAPA DE FORÁA
+          🎯 MAPA DE FORÇA
         </span>
         <span style={{ color: C.muted, fontSize: 9 }}>TAPE + ICE</span>
       </div>
@@ -630,10 +630,10 @@ export function MapaForca({ features, trades = [] }) {
 
               {/* Labels */}
               <span style={{ width: 28, fontSize: 9 }}>
-                {n.isIce && <span title="Iceberg">ð§</span>}
+                {n.isIce && <span title="Iceberg">ð§</span>}
                 {isSup && <span style={{ color: C.green }}>SUP</span>}
                 {isRes && <span style={{ color: C.red }}>RES</span>}
-                {isTheor && <span style={{ color: C.cyan }}>—</span>}
+                {isTheor && <span style={{ color: C.cyan }}>→</span>}
               </span>
             </div>
           )
@@ -644,24 +644,24 @@ export function MapaForca({ features, trades = [] }) {
       <div style={{ marginTop: 8, paddingTop: 6, borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between' }}>
         <div>
           <div style={{ color: C.muted, fontSize: 8 }}>SUPORTE</div>
-          <div style={{ color: C.green, fontSize: 10, fontWeight: 700 }}>{suporte?.price?.toFixed(1) || '—'}</div>
+          <div style={{ color: C.green, fontSize: 10, fontWeight: 700 }}>{suporte?.price?.toFixed(1) || '—'}</div>
         </div>
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: C.muted, fontSize: 8 }}>SIDE</div>
           <div style={{ color: side === 'buy' ? C.green : C.red, fontSize: 10, fontWeight: 700 }}>
-            {side === 'buy' ? '—² BUY' : side === 'sell' ? '—¼ SELL' : '—'}
+            {side === 'buy' ? '▲ BUY' : side === 'sell' ? '▼ SELL' : '—'}
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ color: C.muted, fontSize: 8 }}>RESISTÁNCIA</div>
-          <div style={{ color: C.red, fontSize: 10, fontWeight: 700 }}>{resistencia?.price?.toFixed(1) || '—'}</div>
+          <div style={{ color: C.muted, fontSize: 8 }}>RESISTÊNCIA</div>
+          <div style={{ color: C.red, fontSize: 10, fontWeight: 700 }}>{resistencia?.price?.toFixed(1) || '—'}</div>
         </div>
       </div>
     </div>
   )
 }
 
-// —— SuperDOM WDO com Auto-Scroll —————————————————————————————
+// ──────────────────────────────────────────────────
 const MIN_LOT_DISPLAY = 1
 
 export function SuperDOM({ book, features, levels = 80 }) {
@@ -717,7 +717,7 @@ export function SuperDOM({ book, features, levels = 80 }) {
       </div>
       <div style={{ display:'flex', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
         <div style={{ flex:1, padding:'4px 6px', fontSize:9, color:C.green }}>COMPRA</div>
-        <div style={{ width:76, padding:'4px 2px', fontSize:9, color:C.muted, textAlign:'center' }}>PREÁO</div>
+        <div style={{ width:76, padding:'4px 2px', fontSize:9, color:C.muted, textAlign:'center' }}>PREÇO</div>
         <div style={{ flex:1, padding:'4px 6px', fontSize:9, color:C.red, textAlign:'right' }}>VENDA</div>
         <div style={{ width:52, padding:'4px 4px', fontSize:9, color:C.cyan, textAlign:'right' }}>ICE</div>
       </div>
@@ -734,7 +734,7 @@ export function SuperDOM({ book, features, levels = 80 }) {
             <div key={i} style={{ display:'flex', alignItems:'stretch', minHeight:19, borderBottom:`1px solid ${C.border}12`, background: row.isCurrent ? 'rgba(245,158,11,0.18)' : 'transparent' }}>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', padding:'0 6px' }}>
                 {hasBid && <div style={{ position:'absolute', right:0, top:0, bottom:0, width:`${bidPct}%`, background:'rgba(34,197,94,0.22)', borderRadius:'2px 0 0 2px' }} />}
-                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? (isBigBid ? '— ' : '') + row.bidQty : ''}</span>
+                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? (isBigBid ? '— ' : '') + row.bidQty : ''}</span>
               </div>
               <div style={{ width:76, display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <span style={{ fontSize:row.isCurrent?10:9, fontWeight:row.isCurrent?700:400, color:row.isCurrent?C.gold:hasBid?'#7dc7a0':hasAsk?'#c77d7d':C.dim, background:row.isCurrent?'rgba(245,158,11,0.25)':'transparent', padding:row.isCurrent?'1px 4px':0, borderRadius:2, fontFamily:'monospace' }}>
@@ -743,10 +743,10 @@ export function SuperDOM({ book, features, levels = 80 }) {
               </div>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 6px' }}>
                 {hasAsk && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${askPct}%`, background:'rgba(239,68,68,0.22)', borderRadius:'0 2px 2px 0' }} />}
-                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.red, fontWeight:isBigAsk?700:400, fontFamily:'monospace' }}>{hasAsk ? (isBigAsk ? '— ' : '') + row.askQty : ''}</span>
+                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.red, fontWeight:isBigAsk?700:400, fontFamily:'monospace' }}>{hasAsk ? (isBigAsk ? '— ' : '') + row.askQty : ''}</span>
               </div>
               <div style={{ width:52, display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 4px' }}>
-                {ic && <span style={{ fontSize:8, color:C.cyan, background:'rgba(6,182,212,0.2)', padding:'1px 3px', borderRadius:3, border:`1px solid ${C.cyan}40`, fontFamily:'monospace' }}>ð§{ic.count}</span>}
+                {ic && <span style={{ fontSize:8, color:C.cyan, background:'rgba(6,182,212,0.2)', padding:'1px 3px', borderRadius:3, border:`1px solid ${C.cyan}40`, fontFamily:'monospace' }}>ð§{ic.count}</span>}
               </div>
             </div>
           )
@@ -769,7 +769,7 @@ export function SuperDOM({ book, features, levels = 80 }) {
 }
 
 
-// —— SuperDOM DOL com Auto-Scroll ——————————————————————————————
+// ──────────────────────────────────────────────────
 export function SuperDOMDOL({ dolFeatures, levels = 80 }) {
   const scrollRef = useRef(null)
   const prevPrice = useRef(null)
@@ -823,7 +823,7 @@ export function SuperDOMDOL({ dolFeatures, levels = 80 }) {
       </div>
       <div style={{ display:'flex', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
         <div style={{ flex:1, padding:'3px 6px', fontSize:9, color:C.green }}>COMPRA</div>
-        <div style={{ width:76, padding:'3px 2px', fontSize:9, color:C.gold, textAlign:'center' }}>PREÁO</div>
+        <div style={{ width:76, padding:'3px 2px', fontSize:9, color:C.gold, textAlign:'center' }}>PREÇO</div>
         <div style={{ flex:1, padding:'3px 6px', fontSize:9, color:C.red, textAlign:'right' }}>VENDA</div>
         <div style={{ width:36, padding:'3px 4px', fontSize:9, color:C.cyan, textAlign:'right' }}>ICE</div>
       </div>
@@ -839,7 +839,7 @@ export function SuperDOMDOL({ dolFeatures, levels = 80 }) {
             <div key={i} style={{ display:'flex', alignItems:'stretch', minHeight:19, borderBottom:`1px solid ${C.border}12`, background: row.isCurrent ? 'rgba(245,158,11,0.18)' : 'transparent' }}>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', padding:'0 6px' }}>
                 {hasBid && <div style={{ position:'absolute', right:0, top:0, bottom:0, width:`${bidPct}%`, background:'rgba(34,197,94,0.22)' }} />}
-                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? (isBigBid ? '— ' : '') + row.bidQty : ''}</span>
+                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.green, fontWeight:isBigBid?700:400, fontFamily:'monospace' }}>{hasBid ? (isBigBid ? '— ' : '') + row.bidQty : ''}</span>
               </div>
               <div style={{ width:76, display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <span style={{ fontSize:row.isCurrent?10:9, fontWeight:row.isCurrent?700:400, color:row.isCurrent?C.gold:hasBid?'#7dc7a0':hasAsk?'#c77d7d':C.dim, background:row.isCurrent?'rgba(245,158,11,0.25)':'transparent', padding:row.isCurrent?'1px 4px':0, borderRadius:2, fontFamily:'monospace' }}>
@@ -848,7 +848,7 @@ export function SuperDOMDOL({ dolFeatures, levels = 80 }) {
               </div>
               <div style={{ flex:1, position:'relative', display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 6px' }}>
                 {hasAsk && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${askPct}%`, background:'rgba(239,68,68,0.22)' }} />}
-                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.red, fontWeight:isBigAsk?700:400, fontFamily:'monospace' }}>{hasAsk ? (isBigAsk ? '— ' : '') + row.askQty : ''}</span>
+                <span style={{ position:'relative', zIndex:1, fontSize:9, color:C.red, fontWeight:isBigAsk?700:400, fontFamily:'monospace' }}>{hasAsk ? (isBigAsk ? '— ' : '') + row.askQty : ''}</span>
               </div>
               <div style={{ width:36 }} />
             </div>
@@ -873,7 +873,7 @@ export function SuperDOMDOL({ dolFeatures, levels = 80 }) {
 
 
 
-// —— Decision Window ———————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function DecisionWindow({ windowState, snapshots }) {
   const mono = { fontFamily:"'JetBrains Mono',monospace" }
   const isActive = windowState?.active
@@ -883,7 +883,7 @@ export function DecisionWindow({ windowState, snapshots }) {
     <div style={{ background:'#0c1219', padding:'10px 12px', borderBottom:'1px solid #1e2832' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
         <span style={{ fontSize:9, letterSpacing:2, color: isActive ? '#f59e0b' : '#64748b', textTransform:'uppercase' }}>
-          {isActive ? 'ð JANELA 9h00—9h01 ATIVA' : 'JANELA DE DECISÁO'}
+          {isActive ? '🕘 JANELA 9h00→9h01 ATIVA' : 'JANELA DE DECISÃO'}
         </span>
         {windowState?.segundosRestantes > 0 && (
           <span style={{ fontSize:9, color:'#f59e0b', ...mono }}>{windowState.segundosRestantes}s</span>
@@ -903,17 +903,17 @@ export function DecisionWindow({ windowState, snapshots }) {
           }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <span style={{ color:'#64748b', ...mono }}>#{s.snapshotNum}</span>
-              <span style={{ color: s.tpStable ? '#22c55e' : '#ef4444' }}>TP {s.tp?.toFixed(2)} {s.tpStable ? '—' : '—'}</span>
-              <span style={{ color: s.macroAlign?.aligned ? '#22c55e' : '#ef4444' }}>MACRO {s.macroAlign?.aligned ? '—' : '—'}</span>
+              <span style={{ color: s.tpStable ? '#22c55e' : '#ef4444' }}>TP {s.tp?.toFixed(2)} {s.tpStable ? '✓' : '✗'}</span>
+              <span style={{ color: s.macroAlign?.aligned ? '#22c55e' : '#ef4444' }}>MACRO {s.macroAlign?.aligned ? '✓' : '✗'}</span>
               <span style={{ color: s.icebergContra ? '#ef4444' : s.icebergFavor ? '#06b6d4' : '#64748b' }}>
-                {s.icebergFavor ? 'ð§—' : s.icebergContra ? 'ð§—' : '—'}
+                {s.icebergFavor ? 'ð§✓' : s.icebergContra ? 'ð§✗' : '—'}
               </span>
               <span style={{ color: (s.aiConfianca||0) >= 0.85 ? '#22c55e' : (s.aiConfianca||0) >= 0.70 ? '#f59e0b' : '#ef4444', fontWeight:700, ...mono }}>
                 {((s.aiConfianca||0)*100).toFixed(0)}%
                 {s.icebergFavor && <span style={{ fontSize:8, color:'#06b6d4' }}> +15%</span>}
                 {s.icebergContra && <span style={{ fontSize:8, color:'#ef4444' }}> cap65%</span>}
               </span>
-              {s.ready && <span style={{ color:'#22c55e', fontWeight:700 }}>— ENTRA</span>}
+              {s.ready && <span style={{ color:'#22c55e', fontWeight:700 }}>✅ ENTRA</span>}
             </div>
           </div>
         ))}
@@ -925,18 +925,18 @@ export function DecisionWindow({ windowState, snapshots }) {
             <div style={{ height:'100%', width: `${((snaps[0]?.aiConfianca||0)*100)}%`, background: (snaps[0]?.aiConfianca||0) >= 0.85 ? '#22c55e' : '#f59e0b', borderRadius:2, transition:'width 0.3s' }} />
             <div style={{ position:'absolute', top:0, left:'85%', width:1, height:'100%', background:'#8b5cf6' }} />
           </div>
-          <div style={{ fontSize:8, color:'#475569', textAlign:'right', marginTop:2 }}>—² 85% gatilho</div>
+          <div style={{ fontSize:8, color:'#475569', textAlign:'right', marginTop:2 }}>▲ 85% gatilho</div>
         </div>
       )}
     </div>
   )
 }
 
-// —— Confluence Panel DOL x WDO ————————————————————————————————
+// ──────────────────────────────────────────────────
 export function ConfluencePanel({ confluence }) {
   if (!confluence) return (
     <div style={panel}>
-      <span style={label}>CONFLUÁNCIA DOL Á WDO</span>
+      <span style={label}>CONFLUÁNCIA DOL Á WDO</span>
       <div style={{ color: C.dim, fontSize: 11 }}>Aguardando dados DOL...</div>
     </div>
   )
@@ -946,9 +946,9 @@ export function ConfluencePanel({ confluence }) {
 
   return (
     <div style={{ ...panel, background: bg, border: `1px solid ${color}40` }}>
-      <span style={label}>CONFLUÁNCIA DOL Á WDO</span>
+      <span style={label}>CONFLUÁNCIA DOL Á WDO</span>
       <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 8, letterSpacing: 1 }}>
-        {confluence.aligned ? '— ALINHADOS' : '— DIVERGENTES'}
+        {confluence.aligned ? '✓ ALINHADOS' : '✗ DIVERGENTES'}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
         <Kv label="DOL LADO"    value={confluence.dolSide?.toUpperCase()} color={confluence.dolSide === 'buy' ? C.green : confluence.dolSide === 'sell' ? C.red : C.muted} />
@@ -967,9 +967,9 @@ export function ConfluencePanel({ confluence }) {
   )
 }
 
-// —— SuperDOM DOL (reutiliza lógica do WDO) ————————————————————
+// ──────────────────────────────────────────────────
 
-// —— Esgotamento de Liquidez Alert ————————————————————————————
+// ──────────────────────────────────────────────────
 export function EsgotamentoAlert({ esgotamento }) {
   if (!esgotamento) return null
 
@@ -982,17 +982,17 @@ export function EsgotamentoAlert({ esgotamento }) {
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
         <div style={{ width:8, height:8, borderRadius:'50%', background:color, boxShadow:`0 0 8px ${color}`, animation:'pulse 1s infinite' }} />
         <span style={{ fontSize:12, fontWeight:700, color, letterSpacing:2 }}>
-          ð§ ESGOTAMENTO — {esgotamento.alerta?.replace('_',' ')}
+          💧 ESGOTAMENTO — {esgotamento.alerta?.replace('_',' ')}
         </span>
       </div>
       {esgotamento.motivos?.map((m,i) => (
-        <div key={i} style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>— {m}</div>
+        <div key={i} style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>→ {m}</div>
       ))}
     </div>
   )
 }
 
-// —— CIP & CME Panel ——————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function CIPCMEPanel({ macro }) {
   if (!macro) return (
     <div style={{ background:C.panel, padding:'10px 12px', borderBottom:`1px solid ${C.border}` }}>
@@ -1005,7 +1005,7 @@ export function CIPCMEPanel({ macro }) {
   const cme = macro.cme
 
   const getColor = (score) => score > 0 ? C.green : score < 0 ? C.red : C.muted
-  const getIcon  = (score) => score > 0 ? '—' : score < 0 ? '—' : '—'
+  const getIcon  = (score) => score > 0 ? '↑' : score < 0 ? '→' : '→'
 
   return (
     <div style={{ background:C.panel, padding:'10px 12px', borderBottom:`1px solid ${C.border}` }}>
@@ -1022,7 +1022,7 @@ export function CIPCMEPanel({ macro }) {
         {cip ? (
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:4 }}>
             <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:3, padding:'4px 8px' }}>
-              <div style={{ fontSize:8, color:C.dim }}>PREÁO JUSTO</div>
+              <div style={{ fontSize:8, color:C.dim }}>PREÇO JUSTO</div>
               <div style={{ fontSize:10, color:C.text, fontFamily:'monospace' }}>{cip.precoJusto}</div>
             </div>
             <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:3, padding:'4px 8px' }}>
@@ -1079,7 +1079,7 @@ export function CIPCMEPanel({ macro }) {
 }
 
 
-// —— Calibração Status Panel ———————————————————————————————————
+// ──────────────────────────────────────────────────
 export function CalibracaoPanel({ adaptive }) {
   if (!adaptive) return null
 
@@ -1101,13 +1101,13 @@ export function CalibracaoPanel({ adaptive }) {
   return (
     <div style={{ ...panel, border:`1px solid ${statusColor}40` }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-        <span style={label}>CALIBRAÁÁO ADAPTATIVA</span>
+        <span style={label}>CALIBRAÇÃO ADAPTATIVA</span>
         <span style={{ fontSize:9, color:statusColor, fontWeight:700, letterSpacing:1 }}>{adaptive.status}</span>
       </div>
 
       {/* Thresholds principais */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:4, marginBottom:8 }}>
-        <Kv label="ESCORA Á"    value={(adaptive.escora_multiplicador || 3.0).toFixed(1)} color={C.muted} />
+        <Kv label="ESCORA Á"    value={(adaptive.escora_multiplicador || 3.0).toFixed(1)} color={C.muted} />
         <Kv label="STOP VOL"    value={Math.round(adaptive.stopping_volume || 300)} color={C.muted} />
         <Kv label="EFFORT"      value={Math.round(adaptive.effort_lotes || 150)} color={C.muted} />
         <Kv label="NO SUPPLY"   value={Math.round(adaptive.no_supply_max || 30)} color={C.muted} />
@@ -1116,7 +1116,7 @@ export function CalibracaoPanel({ adaptive }) {
       {/* Ajuste prospectivo */}
       {adaptive.prospectivo && adaptive.prospectivo.fator > 0 && (
         <div style={{ padding:'4px 8px', background:'rgba(245,158,11,0.1)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:3, marginBottom:6, fontSize:9 }}>
-          <span style={{ color:C.gold }}>—¡ Ajuste prospectivo: +{Math.round(adaptive.prospectivo.fator*100)}%</span>
+          <span style={{ color:C.gold }}>⭡ Ajuste prospectivo: +{Math.round(adaptive.prospectivo.fator*100)}%</span>
           <div style={{ color:C.dim, marginTop:2 }}>{(adaptive.prospectivo.motivos||[]).join(' · ')}</div>
         </div>
       )}
@@ -1140,12 +1140,12 @@ function Kv({ label:lbl, value, color }) {
   return (
     <div>
       <div style={{ fontSize:9, letterSpacing:1.5, color:C.muted, marginBottom:2 }}>{lbl}</div>
-      <div style={{ fontSize:12, fontWeight:700, color:color||C.text, ...mono }}>{value??'—'}</div>
+      <div style={{ fontSize:12, fontWeight:700, color:color||C.text, ...mono }}>{value??'—'}</div>
     </div>
   )
 }
 
-// —— Market Context Panel ——————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function MarketContextPanel({ ctx }) {
   const gap  = ctx?.gap
   const cal  = ctx?.calendario
@@ -1175,7 +1175,7 @@ export function MarketContextPanel({ ctx }) {
             </span>
           </div>
           <div style={{ fontSize: 9, color: C.dim, marginTop: 2 }}>
-            Ontem: {gap.prevClose} — Hoje: {gap.currentPrice}
+            Ontem: {gap.prevClose} → Hoje: {gap.currentPrice}
           </div>
         </div>
       )}
@@ -1183,20 +1183,20 @@ export function MarketContextPanel({ ctx }) {
       {/* Calendário */}
       {cal && (
         <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 9, letterSpacing: 1.5, color: C.muted, marginBottom: 4 }}>CALENDÁRIO ECONÁMICO</div>
+          <div style={{ fontSize: 9, letterSpacing: 1.5, color: C.muted, marginBottom: 4 }}>CALENDÁRIO ECONÁMICO</div>
           {cal.temEventoCritico ? (
             <div style={{ background: 'rgba(239,68,68,0.1)', border: `1px solid ${C.red}40`, borderRadius: 3, padding: '6px 8px' }}>
               <div style={{ fontSize: 9, color: C.red, fontWeight: 700, marginBottom: 4 }}>
-                — ï¸ {cal.eventosProximos.length} EVENTO(S) NAS PRÁXIMAS 2H
+                ⚠️ {cal.eventosProximos.length} EVENTO(S) NAS PRÁXIMAS 2H
               </div>
               {cal.eventosProximos.map((e, i) => (
                 <div key={i} style={{ fontSize: 9, color: C.muted, marginBottom: 2 }}>
-                  {e.hora} — {e.nome} ({e.pais})
+                  {e.hora} — {e.nome} ({e.pais})
                 </div>
               ))}
             </div>
           ) : (
-            <div style={{ fontSize: 9, color: C.green }}>— Sem eventos críticos nas próximas 2h</div>
+            <div style={{ fontSize: 9, color: C.green }}>✓ Sem eventos críticos nas próximas 2h</div>
           )}
         </div>
       )}
@@ -1207,7 +1207,7 @@ export function MarketContextPanel({ ctx }) {
         {mm && mm.fonte !== 'placeholder' ? (
           <div>
             <div style={{ fontSize: 10, color: mm.ladoDominante === 'compra' ? C.green : C.red, fontWeight: 700 }}>
-              {mm.ladoDominante?.toUpperCase()} — {mm.totalNiveis} níveis
+              {mm.ladoDominante?.toUpperCase()} — {mm.totalNiveis} níveis
             </div>
           </div>
         ) : (
@@ -1218,7 +1218,7 @@ export function MarketContextPanel({ ctx }) {
   )
 }
 
-// —— Execution Stats (Aba Execution) ———————————————————————————
+// ──────────────────────────────────────────────────
 export function ExecutionStats({ adaptive, fills }) {
   const [tabAtiva, setTabAtiva] = useState('mensal')
   const stats = adaptive || {}
@@ -1230,7 +1230,7 @@ export function ExecutionStats({ adaptive, fills }) {
   const pnlTicks = stats.pnlTicks     || 0
 
   // Esperança matemática
-  const stopBRL  = 40   // 4 ticks Á R$10
+  const stopBRL  = 40   // 4 ticks Á R$10
   const alvoMed  = 100  // ~10 ticks médio
   const em       = total > 0
     ? ((wins/total) * alvoMed) - ((losses/total) * stopBRL)
@@ -1317,11 +1317,11 @@ export function ExecutionStats({ adaptive, fills }) {
             <div>Alvo médio: <span style={{ color:C.green }}>R$100</span> (~10 ticks)</div>
             <div>Win rate: <span style={{ color:C.gold }}>{total > 4 ? winRate+'%' : '80% (projeção)'}</span></div>
             <div style={{ marginTop:6, color:C.text, fontWeight:600 }}>
-              EM = ({total > 4 ? winRate : 80}% Á R$100) - ({total > 4 ? 100-winRate : 20}% Á R$40) = <span style={{ color: em >= 0 ? C.green : C.red }}>R${Math.round(em)}</span>
+              EM = ({total > 4 ? winRate : 80}% Á R$100) - ({total > 4 ? 100-winRate : 20}% Á R$40) = <span style={{ color: em >= 0 ? C.green : C.red }}>R${Math.round(em)}</span>
             </div>
           </div>
           <div style={{ marginTop:10, fontSize:9, color:C.dim, textAlign:'center' }}>
-            — ï¸ Projeção estatística — não é garantia de resultado
+            ⚠️ Projeção estatística — não é garantia de resultado
           </div>
         </Card>
 
@@ -1337,7 +1337,7 @@ export function ExecutionStats({ adaptive, fills }) {
           <div style={{ fontSize:10, color:C.muted, lineHeight:1.8 }}>
             <div>Baseado em: <span style={{ color:C.text }}>win rate {total > 4 ? winRate+'% real' : '80% estimado'}</span></div>
             <div>Modelo: <span style={{ color:C.text }}>distribuição binomial</span></div>
-            <div style={{ marginTop:6, fontSize:9, color:C.dim }}>— ï¸ Pressupõe condições de mercado similares</div>
+            <div style={{ marginTop:6, fontSize:9, color:C.dim }}>⚠️ Pressupõe condições de mercado similares</div>
           </div>
         </Card>
       </div>
@@ -1349,14 +1349,14 @@ export function ExecutionStats({ adaptive, fills }) {
             <div key={i} style={{ background:`${p.cor}10`, border:`1px solid ${p.cor}30`, borderRadius:6, padding:16, textAlign:'center' }}>
               <div style={{ fontSize:10, color:p.cor, letterSpacing:2, textTransform:'uppercase', marginBottom:10 }}>{p.label}</div>
               <div style={{ fontSize:24, fontWeight:700, color:p.cor, ...mono }}>R${p.esperado}</div>
-              <div style={{ fontSize:9, color:C.muted, marginTop:4 }}>R${p.minBRL} — R${p.maxBRL}</div>
+              <div style={{ fontSize:9, color:C.muted, marginTop:4 }}>R${p.minBRL} — R${p.maxBRL}</div>
               <div style={{ fontSize:10, color:C.muted, marginTop:8 }}>{p.trades} trades/mês</div>
-              <div style={{ fontSize:9, color:C.dim, marginTop:2 }}>{p.trades} Á R${Math.round(em)} EM</div>
+              <div style={{ fontSize:9, color:C.dim, marginTop:2 }}>{p.trades} Á R${Math.round(em)} EM</div>
             </div>
           ))}
         </div>
         <div style={{ marginTop:12, fontSize:9, color:C.dim, textAlign:'center' }}>
-          — ï¸ Projeções estatísticas baseadas na esperança matemática · Resultados reais podem variar · Não opera alavancado além de 1 contrato
+          ⚠️ Projeções estatísticas baseadas na esperança matemática · Resultados reais podem variar · Não opera alavancado além de 1 contrato
         </div>
       </Card>
 
@@ -1373,10 +1373,10 @@ export function ExecutionStats({ adaptive, fills }) {
         </Card>
       </div>
 
-      {/* Áltimas execuções */}
+      {/* Últimas execuções */}
       {fills && fills.length > 0 && (
         <div style={{ marginTop:16 }}>
-          <Card title="Áltimas Execuções (Sessão Atual)">
+          <Card title="Últimas Execuções (Sessão Atual)">
             {fills.map((f,i) => (
               <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:`1px solid ${C.border}`, fontSize:11 }}>
                 <span style={{ color:f.direction==='buy'?C.green:C.red, fontWeight:700 }}>{f.direction?.toUpperCase()}</span>
@@ -1395,7 +1395,7 @@ export function ExecutionStats({ adaptive, fills }) {
   )
 }
 
-// —— Análise de Padrões ————————————————————————————————————————
+// ──────────────────────────────────────────────────
 function PadroesList({ adaptive, C, mono }) {
   const historico = adaptive?.historico || []
 
@@ -1442,8 +1442,8 @@ function PadroesList({ adaptive, C, mono }) {
             color={d.wr >= 70 ? C.green : d.wr >= 50 ? C.gold : C.red}
           />
         ))}
-        {melhorDia && <div style={{ marginTop:8, fontSize:10, color:C.green }}>— Melhor: {melhorDia.nome} ({melhorDia.wr}%)</div>}
-        {piorDia   && <div style={{ fontSize:10, color:C.red }}>— Pior: {piorDia.nome} ({piorDia.wr}%)</div>}
+        {melhorDia && <div style={{ marginTop:8, fontSize:10, color:C.green }}>✓ Melhor: {melhorDia.nome} ({melhorDia.wr}%)</div>}
+        {piorDia   && <div style={{ fontSize:10, color:C.red }}>✗ Pior: {piorDia.nome} ({piorDia.wr}%)</div>}
       </div>
 
       <div>
@@ -1453,7 +1453,7 @@ function PadroesList({ adaptive, C, mono }) {
         <Row label="Dias sem sinal" value={pctSemSinal+'%'} color={C.muted} sub={semSinal+' de '+historico.length+' pregões'} />
 
         <div style={{ marginTop:16, padding:'10px 12px', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.2)', borderRadius:4 }}>
-          <div style={{ fontSize:9, letterSpacing:2, color:'#64748b', marginBottom:6 }}>RECOMENDAÁÁO DO SISTEMA</div>
+          <div style={{ fontSize:9, letterSpacing:2, color:'#64748b', marginBottom:6 }}>RECOMENDAÇÃO DO SISTEMA</div>
           {melhorDia && <div style={{ fontSize:10, color:'#e2e8f0', lineHeight:1.6 }}>
             Operar com mais confiança Á s <span style={{ color:C.green }}>{melhorDia.nome}s</span>
             {piorDia && <span>. Cautela extra Á s <span style={{ color:C.red }}>{piorDia.nome}s</span></span>}.
@@ -1467,7 +1467,7 @@ function PadroesList({ adaptive, C, mono }) {
   )
 }
 
-// —— Chat System ———————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function ChatSystem({ adaptive, riskEvent, aiAnalysis, auctionState }) {
   const [msgs, setMsgs]     = useState([
     { role: 'system', text: 'Olá! Sou o assistente do WDO Auction Engine. Pode me perguntar sobre o leilão de hoje, calibração, resultados, sinais emitidos ou qualquer dúvida sobre o sistema.' }
@@ -1490,24 +1490,24 @@ export function ChatSystem({ adaptive, riskEvent, aiAnalysis, auctionState }) {
 
 ESTADO ATUAL DO SISTEMA:
 - Fase do mercado: ${state}
-- Áltimo veredito IA: ${ai.veredito || 'Sem dados'}
+- Último veredito IA: ${ai.veredito || 'Sem dados'}
 - Confiança: ${ai.confianca ? (ai.confianca*100).toFixed(0)+'%' : 'N/A'}
-- DOLÁWDO: ${ai.confluenciaDolWdo || 'N/A'}
+- DOL×WDO: ${ai.confluenciaDolWdo || 'N/A'}
 - Macro: ${ai.alinhamentoMacro || 'N/A'}
 
-CALIBRAÁÁO:
+CALIBRAÇÃO:
 - Status: ${stats.status || 'DEFAULT'}
 - Total pregões: ${stats.totalPregoes || 0}
 - Thresholds: Escora ${stats.thresholds?.escora_multiplicador || 3.0}x | Stop Vol ${Math.round(stats.thresholds?.stopping_volume || 300)}
 
-BALANÁO DO MÁS:
+BALANÇO DO MÁS:
 - Trades: ${balMes.trades || 0}
 - Win Rate: ${balMes.winRate || 0}%
 - PnL: R$${balMes.pnlBRL || 0}
 - Drawdown máx: R$${balMes.drawdownMax || 0}
 
 RISK ENGINE:
-- Áltimo evento: ${riskEvent ? (riskEvent.type === 'risk_approved' ? 'APROVADO' : 'REJEITADO') : 'Nenhum sinal ainda'}
+- Último evento: ${riskEvent ? (riskEvent.type === 'risk_approved' ? 'APROVADO' : 'REJEITADO') : 'Nenhum sinal ainda'}
 
 Responda em português, de forma clara e direta. Máximo 3-4 frases por resposta. Se não tiver dados suficientes, diga honestamente.`
   }
@@ -1634,7 +1634,7 @@ Responda em português, de forma clara e direta. Máximo 3-4 frases por resposta
   )
 }
 
-// —— API Status Panel ——————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
   const [diagResult, setDiagResult] = useState(null)
   const [diagRunning, setDiagRunning] = useState(false)
@@ -1705,32 +1705,32 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
   const _diaUtil = _diaSem >= 1 && _diaSem <= 5
   const hora     = _brt.getUTCHours()
   const min      = _brt.getUTCMinutes()
-  const horaAtual = _diaUtil ? (hora + min / 60) : -1 // -1 = fim de semana — tudo standby
+  const horaAtual = _diaUtil ? (hora + min / 60) : -1 // -1 = fim de semana → tudo standby
 
   // Verifica status baseado nos dados recebidos
   useEffect(() => {
     const interval = setInterval(() => {
       const agora = Date.now()
 
-      // Macro Engine — ativo das 8h45 Á s 18h00
+      // Macro Engine — ativo das 8h45 Á s 18h00
       const yahooAtivo = horaAtual >= 8.75 && horaAtual < 18.0
       const yahooStatus = adaptive?.macroLastUpdate
         ? (agora - adaptive.macroLastUpdate < 120000 ? 'ok' : agora - adaptive.macroLastUpdate < 300000 ? 'lento' : 'erro')
         : yahooAtivo ? 'checking' : 'standby'
 
-      // Twelve Data — ativo das 8h45 Á s 18h
+      // Twelve Data — ativo das 8h45 Á s 18h
       const twelveAtivo = horaAtual >= 8.75 && horaAtual < 18.0
       const twelveStatus = twelveAtivo
         ? (adaptive?.twelveLastUpdate && agora - adaptive.twelveLastUpdate < 30000 ? 'ok' : 'standby')
         : 'standby'
 
-      // Cedro Socket — ativo das 8h55 Á s 9h05
+      // Cedro Socket — ativo das 8h55 Á s 9h05
       const cedroAtivo = horaAtual >= 8.917 && horaAtual < 9.083
       const cedroStatus = connected
         ? (tick?.timestamp && agora - tick.timestamp < 2000 ? 'ok' : 'lento')
         : cedroAtivo ? 'erro' : 'standby'
 
-      // Anthropic — ativo das 8h55 Á s 9h10
+      // Anthropic — ativo das 8h55 Á s 9h10
       const aiAtivo = horaAtual >= 8.917 && horaAtual < 9.167
       const aiStatus = aiAnalysis?.timestamp
         ? (agora - aiAnalysis.timestamp < 10000 ? 'ok' : agora - aiAnalysis.timestamp < 20000 ? 'lento' : 'erro')
@@ -1765,16 +1765,16 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
   }[status] || 'DESCONHECIDO')
 
   const getIcon = (status) => ({
-    ok:       '—',
-    lento:    'ð¡',
-    erro:     'ð´',
-    standby:  '—«',
-    checking: 'ðµ',
-    stub:     'ð¡',
-  }[status] || '—«')
+    ok:       '✅',
+    lento:    'ð¡',
+    erro:     'ð´',
+    standby:  '⏸',
+    checking: 'ðµ',
+    stub:     'ð¡',
+  }[status] || '⏸')
 
   const formatTime = (ts) => {
-    if (!ts) return '—'
+    if (!ts) return '—'
     const diff = Math.round((Date.now() - ts) / 1000)
     if (diff < 60)  return diff + 's atrás'
     if (diff < 3600) return Math.round(diff/60) + 'min atrás'
@@ -1785,7 +1785,7 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
     {
       key:     'yahoo',
       nome:    'Macro Engine',
-      janela:  '8h45 — 8h58',
+      janela:  '8h45 → 8h58',
       descricao: 'DXY, Treasury, VIX, Ouro, S&P (30s delay)',
       status:  apiStatus.yahoo.status,
       lastUpdate: apiStatus.yahoo.lastUpdate,
@@ -1793,7 +1793,7 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
     {
       key:     'twelve',
       nome:    'Twelve Data',
-      janela:  '8h59 — 9h05',
+      janela:  '8h59 → 9h05',
       descricao: 'DXY, Treasury, VIX, Ouro, S&P (tempo real)',
       status:  apiStatus.twelve.status,
       lastUpdate: apiStatus.twelve.lastUpdate,
@@ -1801,7 +1801,7 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
     {
       key:     'cedro',
       nome:    'Cedro Socket',
-      janela:  '8h55 — 9h05',
+      janela:  '8h55 → 9h05',
       descricao: 'WDO ticks, DOL ticks, Book L2 (250ms)',
       status:  apiStatus.cedro.status,
       lastUpdate: apiStatus.cedro.lastUpdate,
@@ -1809,7 +1809,7 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
     {
       key:     'anthropic',
       nome:    'Anthropic Claude',
-      janela:  '8h55 — 9h05',
+      janela:  '8h55 → 9h05',
       descricao: 'Análise IA, confiança, alvo dinâmico',
       status:  apiStatus.anthropic.status,
       lastUpdate: apiStatus.anthropic.lastUpdate,
@@ -1833,8 +1833,8 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
             SISTEMA {getLabel(statusGeral).toUpperCase()}
           </div>
           <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>
-            {temErro ? 'Uma ou mais APIs com problema — verificar antes de operar' :
-             temLento ? 'APIs com latência alta — monitorar' :
+            {temErro ? 'Uma ou mais APIs com problema — verificar antes de operar' :
+             temLento ? 'APIs com latência alta — monitorar' :
              'Todos os sistemas operacionais'}
           </div>
         </div>
@@ -1850,18 +1850,18 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
           border:'1px solid #3b82f6', borderRadius:6, cursor: diagRunning ? 'not-allowed' : 'pointer',
           marginBottom:16, width:'100%'
         }}>
-          {diagRunning ? '—³ TESTANDO...' : 'ð RODAR DIAGNÁSTICO'}
+          {diagRunning ? '—³ TESTANDO...' : 'ð RODAR DIAGNÁSTICO'}
         </button>
 
         {diagResult && (
           <div style={{ background:'#0c1219', border:'2px solid ' + (diagResult.ok ? '#22c55e' : '#ef4444') + '40', borderRadius:8, padding:16 }}>
             <div style={{ fontSize:12, fontWeight:700, color: diagResult.ok ? '#22c55e' : '#ef4444', marginBottom:12, letterSpacing:1 }}>
-              {diagResult.ok ? '— TODOS OS SISTEMAS OK' : '— ï¸ PROBLEMA DETECTADO'}
+              {diagResult.ok ? '✅ TODOS OS SISTEMAS OK' : '⚠️ PROBLEMA DETECTADO'}
             </div>
             {diagResult.itens.map((item, i) => (
               <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid #1e2832' }}>
                 <span style={{ fontSize:11, color: item.ok ? '#22c55e' : '#ef4444' }}>
-                  {item.ok ? '—' : '—'} {item.nome}
+                  {item.ok ? '✅' : '✘'} {item.nome}
                 </span>
                 <span style={{ fontSize:10, color:'#64748b', fontFamily:'monospace' }}>
                   {item.detalhe}{item.ms ? ' · ' + item.ms + 'ms' : ''}
@@ -1880,16 +1880,16 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
           return (
             <div key={api.key} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom: i < apis.length-1 ? '1px solid #1e2832' : 'none' }}>
               <span style={{ fontSize:11, color:cor }}>
-                {api.status==='ok'?'—':api.status==='erro'?'—':api.status==='lento'?'ð¡':'—«'} {api.nome}
+                {api.status==='ok'?'✅':api.status==='erro'?'✘':api.status==='lento'?'ð¡':'⏸'} {api.nome}
               </span>
               <span style={{ fontSize:10, color:'#64748b', fontFamily:'monospace' }}>
                 {api.janela} · <span style={{ color:cor, fontWeight:700 }}>{getLabel(api.status)}</span>
                 {api.lastUpdate ? ' · ' + Math.round((Date.now()-api.lastUpdate)/1000) + 's atras' : ''}
                 {' · '}
-                {api.key === 'yahoo' && (apiTests.yahoo.testado ? (apiTests.yahoo.ok ? <span style={{color:'#22c55e'}}>— funcionando{apiTests.yahoo.ms ? ' '+apiTests.yahoo.ms+'ms' : ''}</span> : <span style={{color:'#ef4444'}}>— offline</span>) : <span style={{color:'#64748b'}}>testando...</span>)}
-                {api.key === 'twelve' && (apiTests.twelve.testado ? (apiTests.twelve.ok ? <span style={{color:'#22c55e'}}>— funcionando{apiTests.twelve.ms ? ' '+apiTests.twelve.ms+'ms' : ''}</span> : <span style={{color:'#ef4444'}}>— offline</span>) : <span style={{color:'#64748b'}}>testando...</span>)}
-                {api.key === 'cedro' && (apiTests.cedro.testado ? (apiTests.cedro.ok ? <span style={{color:'#22c55e'}}>— funcionando{apiTests.cedro.ms ? ' '+apiTests.cedro.ms+'ms' : ''}</span> : <span style={{color:'#ef4444'}}>— offline</span>) : <span style={{color:'#64748b'}}>testando...</span>)}
-                {api.key === 'anthropic' && (apiTests.claude.testado ? (apiTests.claude.ok ? <span style={{color:'#22c55e'}}>— funcionando{apiTests.claude.ms ? ' '+apiTests.claude.ms+'ms' : ''}</span> : <span style={{color:'#ef4444'}}>— offline</span>) : <span style={{color:'#64748b'}}>testando...</span>)}
+                {api.key === 'yahoo' && (apiTests.yahoo.testado ? (apiTests.yahoo.ok ? <span style={{color:'#22c55e'}}>✅ funcionando{apiTests.yahoo.ms ? ' '+apiTests.yahoo.ms+'ms' : ''}</span> : <span style={{color:'#ef4444'}}>✘ offline</span>) : <span style={{color:'#64748b'}}>testando...</span>)}
+                {api.key === 'twelve' && (apiTests.twelve.testado ? (apiTests.twelve.ok ? <span style={{color:'#22c55e'}}>✅ funcionando{apiTests.twelve.ms ? ' '+apiTests.twelve.ms+'ms' : ''}</span> : <span style={{color:'#ef4444'}}>✘ offline</span>) : <span style={{color:'#64748b'}}>testando...</span>)}
+                {api.key === 'cedro' && (apiTests.cedro.testado ? (apiTests.cedro.ok ? <span style={{color:'#22c55e'}}>✅ funcionando{apiTests.cedro.ms ? ' '+apiTests.cedro.ms+'ms' : ''}</span> : <span style={{color:'#ef4444'}}>✘ offline</span>) : <span style={{color:'#64748b'}}>testando...</span>)}
+                {api.key === 'anthropic' && (apiTests.claude.testado ? (apiTests.claude.ok ? <span style={{color:'#22c55e'}}>✅ funcionando{apiTests.claude.ms ? ' '+apiTests.claude.ms+'ms' : ''}</span> : <span style={{color:'#ef4444'}}>✘ offline</span>) : <span style={{color:'#64748b'}}>testando...</span>)}
               </span>
             </div>
           )
@@ -1898,13 +1898,13 @@ export function APIStatus({ connected, aiAnalysis, tick, adaptive }) {
 
       {/* Nota sobre Twelve Data */}
       <div style={{ marginTop:16, padding:'10px 14px', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.2)', borderRadius:6, fontSize:10, color:'#64748b', lineHeight:1.6 }}>
-        —¹ï¸ <strong style={{ color:'#94a3b8' }}>Twelve Data</strong> será ativado automaticamente Á s 8h59 quando a Cedro estiver conectada. API Key configurada.
+        ℹ️ <strong style={{ color:'#94a3b8' }}>Twelve Data</strong> será ativado automaticamente Á s 8h59 quando a Cedro estiver conectada. API Key configurada.
       </div>
     </div>
   )
 }
 
-// —— Login Screen ——————————————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function LoginScreen({ onLogin }) {
   const [usuario, setUsuario] = useState('')
   const [senha, setSenha]     = useState('')
@@ -1930,7 +1930,7 @@ export function LoginScreen({ onLogin }) {
       localStorage.setItem('wdo_usuario', data.usuario)
       onLogin(data.token)
     } catch (e) {
-      if (e.name === 'AbortError') setErro('Timeout — servidor demorou mais de 30s')
+      if (e.name === 'AbortError') setErro('Timeout — servidor demorou mais de 30s')
       else setErro('Erro de conexão com o servidor')
     } finally {
       clearTimeout(timer)
@@ -1955,7 +1955,7 @@ export function LoginScreen({ onLogin }) {
 
         {/* Campos */}
         <div style={{ marginBottom:16 }}>
-          <label style={{ fontSize:9, color:'#64748b', letterSpacing:2, display:'block', marginBottom:6 }}>USUÁRIO</label>
+          <label style={{ fontSize:9, color:'#64748b', letterSpacing:2, display:'block', marginBottom:6 }}>USUÁRIO</label>
           <input
             value={usuario}
             onChange={e => setUsuario(e.target.value)}
@@ -1972,7 +1972,7 @@ export function LoginScreen({ onLogin }) {
             value={senha}
             onChange={e => setSenha(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="—¢—¢—¢—¢—¢—¢—¢—¢"
+            placeholder="—¢—¢—¢—¢—¢—¢—¢—¢"
             style={{ width:'100%', background:'#080c10', border:'1px solid #1e2832', borderRadius:6, color:'#e2e8f0', fontSize:13, padding:'10px 12px', outline:'none', fontFamily:'monospace', boxSizing:'border-box' }}
           />
         </div>
@@ -1998,11 +1998,11 @@ export function LoginScreen({ onLogin }) {
   )
 }
 
-// —— Market Features Panel —————————————————————————————————————
+// ──────────────────────────────────────────────────
 export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
   if (!mktFeatures) return (
     <div style={{ background:C.panel, padding:'10px 12px', borderBottom:`1px solid ${C.border}` }}>
-      <span style={{ fontSize:9, letterSpacing:2, color:C.muted, textTransform:'uppercase' }}>ANÁLISE ESPECIALIZADA</span>
+      <span style={{ fontSize:9, letterSpacing:2, color:C.muted, textTransform:'uppercase' }}>ANÁLISE ESPECIALIZADA</span>
       <div style={{ fontSize:10, color:C.dim, marginTop:4 }}>Aguardando dados do leilão...</div>
     </div>
   )
@@ -2015,7 +2015,7 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
   return (
     <div style={{ background:C.panel, padding:'10px 12px', borderBottom:`1px solid ${C.border}` }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-        <span style={{ fontSize:9, letterSpacing:2, color:C.muted, textTransform:'uppercase' }}>ANÁLISE ESPECIALIZADA</span>
+        <span style={{ fontSize:9, letterSpacing:2, color:C.muted, textTransform:'uppercase' }}>ANÁLISE ESPECIALIZADA</span>
         <span style={{ fontSize:11, fontWeight:700, color:scoreColor, fontFamily:'monospace' }}>
           {featureScore > 0 ? '+' : ''}{featureScore} score
         </span>
@@ -2027,11 +2027,11 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
         <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:4, padding:'6px 8px' }}>
           <div style={{ fontSize:8, color:C.dim, letterSpacing:1, marginBottom:3 }}>VAP · POC</div>
           <div style={{ fontSize:11, color:C.gold, fontFamily:'monospace', fontWeight:700 }}>
-            {vap?.poc?.price?.toFixed(1) || '—'}
+            {vap?.poc?.price?.toFixed(1) || '—'}
           </div>
           <div style={{ fontSize:8, color:C.muted }}>{vap?.poc?.totalVol || 0} lotes</div>
           <div style={{ fontSize:8, color:C.dim, marginTop:2 }}>
-            VA: {vap?.valueArea?.low?.toFixed(1)}—{vap?.valueArea?.high?.toFixed(1)}
+            VA: {vap?.valueArea?.low?.toFixed(1)}—{vap?.valueArea?.high?.toFixed(1)}
           </div>
         </div>
 
@@ -2040,10 +2040,10 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
           <div style={{ fontSize:8, color:C.dim, letterSpacing:1, marginBottom:3 }}>TP VELOCIDADE</div>
           <div style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
             color: tpVelocidade?.estavel ? C.green : tpVelocidade?.oscilando ? C.red : C.gold }}>
-            {tpVelocidade?.estavel ? '— ESTÁVEL' : tpVelocidade?.oscilando ? '— OSCILANDO' : '~ CONV.'}
+            {tpVelocidade?.estavel ? '✓ ESTÁVEL' : tpVelocidade?.oscilando ? '✗ OSCILANDO' : '~ CONV.'}
           </div>
           <div style={{ fontSize:8, color:C.muted }}>{tpVelocidade?.velocidade?.toFixed(2) || 0} pts/s</div>
-          <div style={{ fontSize:8, color:C.dim, marginTop:2 }}>Ï {tpVelocidade?.desvioPadrao?.toFixed(2) || 0}</div>
+          <div style={{ fontSize:8, color:C.dim, marginTop:2 }}>Ï {tpVelocidade?.desvioPadrao?.toFixed(2) || 0}</div>
         </div>
 
         {/* Agressor Ratio */}
@@ -2067,18 +2067,18 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
           <div style={{ fontSize:8, color:C.dim, letterSpacing:1, marginBottom:3 }}>ESCORA REAL</div>
           <div style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
             color: escoraReal?.nivelForte ? C.green : C.muted }}>
-            {escoraReal?.escoraAtual?.price?.toFixed(1) || '—'}
+            {escoraReal?.escoraAtual?.price?.toFixed(1) || '—'}
           </div>
           <div style={{ fontSize:8, color:C.muted }}>{escoraReal?.escoraAtual?.maxVol || 0} lotes max</div>
           <div style={{ fontSize:8, color: escoraReal?.nivelForte ? C.green : C.dim, marginTop:2 }}>
-            {escoraReal?.nivelForte ? '— FORTE' : 'Fraca'}
+            {escoraReal?.nivelForte ? '✓ FORTE' : 'Fraca'}
           </div>
         </div>
 
         {/* Confiança IA + Amplitude */}
         <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:4, padding:'6px 8px', gridColumn:'span 2' }}>
           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-            <div style={{ fontSize:8, color:C.dim, letterSpacing:1 }}>ANÁLISE DE CONFIANÁA</div>
+            <div style={{ fontSize:8, color:C.dim, letterSpacing:1 }}>ANÁLISE DE CONFIANÇA</div>
             <div style={{ fontSize:8, color:C.dim, letterSpacing:1 }}>AMPLITUDE</div>
           </div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
@@ -2087,11 +2087,11 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
                 <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
                   color: aiAnalysis?.direcao === 'buy' ? C.green : aiAnalysis?.direcao === 'sell' ? C.red : aiAnalysis?.confianca >= 0.85 ? C.green : aiAnalysis?.confianca >= 0.6 ? C.gold : C.muted }}>
-                  {aiAnalysis?.direcao === 'buy' ? '—² COMPRA' : aiAnalysis?.direcao === 'sell' ? '—¼ VENDA' : '—'}
+                  {aiAnalysis?.direcao === 'buy' ? '▲ COMPRA' : aiAnalysis?.direcao === 'sell' ? '▼ VENDA' : '—'}
                 </span>
                 <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
                   color: aiAnalysis?.confianca >= 0.85 ? C.green : aiAnalysis?.confianca >= 0.6 ? C.gold : C.red }}>
-                  {aiAnalysis?.confianca ? Math.round(aiAnalysis.confianca*100)+'%' : '—'}
+                  {aiAnalysis?.confianca ? Math.round(aiAnalysis.confianca*100)+'%' : '—'}
                 </span>
               </div>
               <div style={{ height:4, background:C.border, borderRadius:2, overflow:'hidden' }}>
@@ -2101,17 +2101,17 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
                 }} />
               </div>
               <div style={{ fontSize:8, color:C.muted, marginTop:2 }}>
-                {aiAnalysis?.confianca >= 0.85 ? '— OPERARIA' : aiAnalysis?.confianca > 0 ? 'aguardando...' : ''}
+                {aiAnalysis?.confianca >= 0.85 ? '✓ OPERARIA' : aiAnalysis?.confianca > 0 ? 'aguardando...' : ''}
               </div>
             </div>
             {/* Barra amplitude */}
             <div style={{ flex:1 }}>
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
                 <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700, color:C.green }}>
-                  {aiAnalysis?.alvo1Ticks > 0 ? aiAnalysis.alvo1Ticks+'t' : '—'}
+                  {aiAnalysis?.alvo1Ticks > 0 ? aiAnalysis.alvo1Ticks+'t' : '—'}
                 </span>
                 <span style={{ fontSize:8, color:C.muted }}>
-                  {aiAnalysis?.alvo1Ticks > 0 ? (aiAnalysis.alvo1Ticks/2).toFixed(0)+'pts' : '—'}
+                  {aiAnalysis?.alvo1Ticks > 0 ? (aiAnalysis.alvo1Ticks/2).toFixed(0)+'pts' : '—'}
                 </span>
               </div>
               <div style={{ height:4, background:C.border, borderRadius:2, overflow:'hidden' }}>
@@ -2124,10 +2124,10 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
           </div>
           {aiAnalysis?.alvo1Preco > 0 && (
             <div style={{ display:'flex', justifyContent:'space-between', marginTop:4, fontSize:8, color:C.muted }}>
-              <span>entrada: {aiAnalysis?.precoEntrada?.toFixed(1) || '—'}</span>
+              <span>entrada: {aiAnalysis?.precoEntrada?.toFixed(1) || '—'}</span>
               <span style={{ color:C.green }}>alvo: {aiAnalysis.alvo1Preco?.toFixed(1)}</span>
-              <span style={{ color:C.red }}>stop: {aiAnalysis?.stopPreco?.toFixed(1) || '—'}</span>
-              <span style={{ color:C.gold }}>RR: {aiAnalysis?.rr?.toFixed(2) || '—'}</span>
+              <span style={{ color:C.red }}>stop: {aiAnalysis?.stopPreco?.toFixed(1) || '—'}</span>
+              <span style={{ color:C.gold }}>RR: {aiAnalysis?.rr?.toFixed(2) || '—'}</span>
             </div>
           )}
         </div>
@@ -2137,10 +2137,10 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
           <div style={{ fontSize:8, color:C.dim, letterSpacing:1, marginBottom:3 }}>SPREAD WDO·DOL</div>
           <div style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
             color: spread?.divergente ? C.red : C.green }}>
-            {spread?.spread?.toFixed(1) || '—'} pts
+            {spread?.spread?.toFixed(1) || '—'} pts
           </div>
           <div style={{ fontSize:8, color: spread?.divergente ? C.red : C.muted }}>
-            {spread?.divergente ? '— DIVERGENTE' : '— NORMAL'}
+            {spread?.divergente ? '✗ DIVERGENTE' : '✓ NORMAL'}
           </div>
         </div>
 
@@ -2149,9 +2149,9 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
           <div style={{ fontSize:8, color:C.dim, letterSpacing:1, marginBottom:3 }}>VOL RATIO</div>
           <div style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
             color: volumeRatio?.forte ? C.green : volumeRatio?.fraco ? C.red : C.muted }}>
-            {volumeRatio?.ratio ? `${volumeRatio.ratio.toFixed(1)}x` : '—'}
+            {volumeRatio?.ratio ? `${volumeRatio.ratio.toFixed(1)}x` : '—'}
           </div>
-          <div style={{ fontSize:8, color:C.muted }}>média {volumeRatio?.media || '—'}</div>
+          <div style={{ fontSize:8, color:C.muted }}>média {volumeRatio?.media || '—'}</div>
         </div>
 
       </div>
@@ -2163,11 +2163,11 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
           border: `1px solid ${tunnel.risco === 'alto' ? C.red+'40' : C.border}` }}>
           <div style={{ fontSize:8, color:C.dim, marginBottom:2 }}>TUNNEL LIMITS B3</div>
           <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, fontFamily:'monospace' }}>
-            <span style={{ color:C.green }}>Piso: {tunnel.lowerLimit?.toFixed(1) || '—'}</span>
+            <span style={{ color:C.green }}>Piso: {tunnel.lowerLimit?.toFixed(1) || '—'}</span>
             <span style={{ color: tunnel.risco === 'alto' ? C.red : C.muted }}>
               Risco: {tunnel.risco?.toUpperCase()}
             </span>
-            <span style={{ color:C.red }}>Teto: {tunnel.upperLimit?.toFixed(1) || '—'}</span>
+            <span style={{ color:C.red }}>Teto: {tunnel.upperLimit?.toFixed(1) || '—'}</span>
           </div>
         </div>
       )}
@@ -2192,7 +2192,7 @@ export function CMERangePanel({ macro }) {
         <>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:8 }}>
             <div style={{ textAlign:'center', background:'rgba(34,197,94,0.1)', borderRadius:4, padding:'6px 4px' }}>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:2 }}>MÁXIMA</div>
+              <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:2 }}>MÁXIMA</div>
               <div style={{ fontSize:13, fontWeight:700, color:'#22c55e', fontFamily:'monospace' }}>{parseFloat(range.max).toFixed(3)}</div>
             </div>
             <div style={{ textAlign:'center', background:'rgba(255,255,255,0.05)', borderRadius:4, padding:'6px 4px' }}>
@@ -2200,7 +2200,7 @@ export function CMERangePanel({ macro }) {
               <div style={{ fontSize:13, fontWeight:700, color:'#f59e0b', fontFamily:'monospace' }}>{range.range} pts</div>
             </div>
             <div style={{ textAlign:'center', background:'rgba(239,68,68,0.1)', borderRadius:4, padding:'6px 4px' }}>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:2 }}>MÁNIMA</div>
+              <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:2 }}>MÁNIMA</div>
               <div style={{ fontSize:13, fontWeight:700, color:'#ef4444', fontFamily:'monospace' }}>{parseFloat(range.min).toFixed(3)}</div>
             </div>
           </div>
@@ -2271,12 +2271,12 @@ export function TapeThermometer({ features, mktFeatures }) {
           <div style={{ fontSize:12, fontWeight:600, color:aggRatio>0.6?'#22c55e':aggRatio<0.4?'#ef4444':'#6b7280' }}>{Math.round(aggRatio*100)}%</div>
         </div>
         <div style={{ textAlign:'center' }}>
-          <div style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>FLOW Δ</div>
+          <div style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>FLOW Δ</div>
           <div style={{ fontSize:12, fontWeight:600, color:flowDelta>0?'#22c55e':flowDelta<0?'#ef4444':'#6b7280' }}>{flowDelta>0?'+':''}{flowDelta}</div>
         </div>
         <div style={{ textAlign:'center' }}>
           <div style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>ESCORA</div>
-          <div style={{ fontSize:12, fontWeight:600, color:escora?'#22c55e':'#6b7280' }}>{escora?'SIM':'—'}</div>
+          <div style={{ fontSize:12, fontWeight:600, color:escora?'#22c55e':'#6b7280' }}>{escora?'SIM':'—'}</div>
         </div>
       </div>
     </div>
