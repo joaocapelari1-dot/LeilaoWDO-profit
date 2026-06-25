@@ -8,6 +8,7 @@ export function useWDOSocket(token) {
   const [book, setBook]               = useState(null)
   const [bookDol, setBookDol]           = useState(null)
   const [dolTick, setDolTick]           = useState(null)
+  const [mdilStatus, setMdilStatus]     = useState({})
   const [features, setFeatures]       = useState(null)
   const [auctionState, setAuction]    = useState(null)
   const [signal, setSignal]           = useState(null)
@@ -79,6 +80,9 @@ export function useWDOSocket(token) {
             case 'book':          setBook(msg.data);     break
             case 'book_dol':      setBookDol(msg.data);  break
             case 'features_dol':  if(msg.data) setDolFeatures(msg.data); break
+            case 'mdil_status':   if(msg.data) setMdilStatus(prev => ({...prev, [msg.data.sym]: msg.data})); break
+            case 'mdil_ghost':    if(msg.data) setMdilStatus(prev => ({...prev, [msg.data.sym]: {...(prev[msg.data.sym]||{}), ghost:true}})); break
+            case 'mdil_real':     if(msg.data) setMdilStatus(prev => ({...prev, [msg.data.sym]: {...(prev[msg.data.sym]||{}), ghost:false}})); break
             case 'tick_dol':      if(msg.data) setDolTick(msg.data); break
             case 'context_gap':
               setContext(prev => ({ ...prev, gap: msg.data })); break
@@ -131,5 +135,5 @@ export function useWDOSocket(token) {
   // Merge historical trades + live ticks for chart
   const fullTickHistory = [...histTrades, ...(tickHistory || [])]
 
-  return { connected, tick, book, bookDol, dolTick, features, mktFeatures, auctionState, signal, aiAnalysis, riskEvent, fills, tickHistory: fullTickHistory, tape, windowState, snapshots, dolFeatures, confluence, marketContext, adaptive: adaptive ? { ...adaptive, historico, journal, balanco } : { historico, journal, balanco }, esgotamento, macro, symbols }
+  return { connected, tick, book, bookDol, dolTick, mdilStatus, features, mktFeatures, auctionState, signal, aiAnalysis, riskEvent, fills, tickHistory: fullTickHistory, tape, windowState, snapshots, dolFeatures, confluence, marketContext, adaptive: adaptive ? { ...adaptive, historico, journal, balanco } : { historico, journal, balanco }, esgotamento, macro, symbols }
 }
