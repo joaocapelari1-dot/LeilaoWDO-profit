@@ -369,6 +369,10 @@ function createServer(bus, engines = {}) {
   bus.on('adaptive:pregao_salvo',(d) => broadcast('adaptive_pregao',  d));
   bus.on('feature:wdo',        (d) => broadcast('features',       d));
   bus.on('feature:dol',        (d) => broadcast('features_dol',   d));
+  bus.on('mdil:status',        (d) => broadcast('mdil_status',     d));
+  bus.on('mdil:ghost_feed',    (d) => broadcast('mdil_ghost',      d));
+  bus.on('mdil:real_feed',     (d) => broadcast('mdil_real',       d));
+  bus.on('mdil:feed_invalid',  (d) => broadcast('mdil_invalid',    d));
   bus.on('cedro:tick:dol',     (d) => { if (d?.last) broadcast('tick_dol', d); });
   // ai:analise já registrado acima (linha 301)
   bus.on('risk:approved',      (d) => broadcast('risk_approved',  d));
