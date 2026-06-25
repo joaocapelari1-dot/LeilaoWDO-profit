@@ -176,7 +176,7 @@ export default function App() {
           <div style={{ display:'flex', flexDirection:'column', gap:1, overflow:'hidden', height:'100%' }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, flex:1, overflow:'hidden' }}>
                             <SuperDOM book={socket.book} features={socket.features} mdilStatus={socket.mdilStatus?.['WDON26']} levels={40} />
-              <SuperDOMDOL dolFeatures={socket.dolFeatures} bookDol={socket.bookDol} dolTick={socket.dolTick} mdilStatus={socket.mdilStatus?.['DOLN26']} levels={80} />
+              <SuperDOMDOL dolFeatures={socket.dolFeatures} bookDol={socket.bookDol} dolTick={socket.dolTick} mdilStatus={socket.mdilStatus?.['DOLN26']} levels={40} />
             </div>
           </div>
 
