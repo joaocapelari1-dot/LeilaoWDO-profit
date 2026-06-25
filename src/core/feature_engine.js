@@ -70,10 +70,20 @@ class FeatureEngine {
 
   // ── Confluência DOL x WDO ────────────────────────────────────
   _calcConfluence() {
-    const wdoSide = this.wdo.auctionData.side;
-    const dolSide = this.dol.auctionData.side;
-    const wdoSurplus = this.wdo.auctionData.surplus;
-    const dolSurplus = this.dol.auctionData.surplus;
+    // Durante leilão: usar auctionData (surplus e side do leilão)
+    // Fora do leilão: usar aggressor do último tick para inferir side
+    const dolLastTick = this.dol.ticks[this.dol.ticks.length - 1];
+    const wdoLastTick = this.wdo.ticks[this.wdo.ticks.length - 1];
+
+    const dolSide = this.dol.auctionData.side ||
+      (dolLastTick?.aggressor === 'buyer' ? 'buy' :
+       dolLastTick?.aggressor === 'seller' ? 'sell' : null);
+    const wdoSide = this.wdo.auctionData.side ||
+      (wdoLastTick?.aggressor === 'buyer' ? 'buy' :
+       wdoLastTick?.aggressor === 'seller' ? 'sell' : null);
+
+    const dolSurplus = this.dol.auctionData.surplus || 0;
+    const wdoSurplus = this.wdo.auctionData.surplus || 0;
 
     const aligned = wdoSide && dolSide && wdoSide !== 'balanced' && dolSide !== 'balanced' && wdoSide === dolSide;
     const direction = aligned ? wdoSide : null;
@@ -88,8 +98,8 @@ class FeatureEngine {
       dolSurplus,
       strength,
       label: aligned
-        ? `DOL+WDO ${direction?.toUpperCase()} ✓`
-        : `DOL ${dolSide || '?'} vs WDO ${wdoSide || '?'} ✗`,
+        ? \`DOL+WDO \${direction?.toUpperCase()} ✓\`
+        : \`DOL \${dolSide || '?'} vs WDO \${wdoSide || '?'} ✗\`,
     };
   }
 
