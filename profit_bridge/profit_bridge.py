@@ -67,6 +67,36 @@ _cb_refs    = {}
 class TAssetIDRec(ctypes.Structure):
     _fields_ = [("pwcTicker", ctypes.c_wchar_p), ("pwcBolsa", ctypes.c_wchar_p), ("nFeed", ctypes.c_int)]
 
+# ── Price Depth (Livro de Profundidade) — documentação Nelogica ──────────
+# TConnectorAssetIdentifier — usado no SubscribePriceDepth
+class TConnectorAssetIdentifier(ctypes.Structure):
+    _fields_ = [
+        ("Version",  ctypes.c_ubyte),
+        ("Ticker",   ctypes.c_wchar * 25),
+        ("Exchange", ctypes.c_wchar * 4),
+        ("FeedType", ctypes.c_int),
+    ]
+
+# TConnectorPriceGroup — retornado por GetPriceGroup
+# CRÍTICO: Quantity é Int64 (c_longlong) — não c_long (32bits no Windows)
+class TConnectorPriceGroup(ctypes.Structure):
+    _fields_ = [
+        ("Version",        ctypes.c_ubyte),
+        ("Price",          ctypes.c_double),
+        ("Count",          ctypes.c_uint),
+        ("Quantity",       ctypes.c_longlong),   # Int64 — obrigatório
+        ("PriceGroupFlags",ctypes.c_uint),
+    ]
+
+# Callback de PriceDepth: (asset por valor, side, position, updateType)
+TConnectorPriceDepthCallback = ctypes.WINFUNCTYPE(
+    None,
+    TConnectorAssetIdentifier,  # asset por valor (não ponteiro)
+    ctypes.c_ubyte,             # side: 0=buy, 1=sell
+    ctypes.c_int,               # position (índice do nível)
+    ctypes.c_ubyte,             # updateType: 0=Add,1=Edit,2=Delete,4=FullBook,5=Prepare,6=Flush
+)
+
 TStateCallback             = ctypes.WINFUNCTYPE(None, ctypes.c_int, ctypes.c_int)
 TProgressCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_int)
 TNewTradeCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p, ctypes.c_uint32, ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char)
@@ -154,7 +184,61 @@ def init_dll(dll):
     if r != 0: raise RuntimeError(f"DLL falhou: {r:#010x}")
     log.info("DLL inicializada.")
 
+def _cb_price_depth(asset, side, position, update_type):
+    """Callback do Livro de Profundidade (Price Depth) — documentação Nelogica.
+    Chamado quando há mudança no book agregado por preço.
+    Não chama funções da DLL aqui (roda na ConnectorThread).
+    Enfileira para processar em thread separada.
+    """
+    try:
+        ticker = asset.Ticker
+        # Enfileira notificação — o consumidor vai chamar GetPriceGroup
+        enqueue({"type": "price_depth_update", "ticker": ticker, "side": side,
+                 "position": position, "update_type": update_type})
+    except Exception as e:
+        log.error(f"_cb_price_depth erro: {e}")
+
+def _read_price_depth(dll, ticker):
+    """Lê todos os níveis do livro de profundidade via GetPriceGroup.
+    Chamado pela thread consumidora (não no callback).
+    """
+    try:
+        asset = TConnectorAssetIdentifier()
+        asset.Version  = 0
+        asset.Ticker   = ticker
+        asset.Exchange = EXCHANGE_BMF
+        asset.FeedType = 0
+
+        dll.GetPriceDepthSideCount.restype  = ctypes.c_int
+        dll.GetPriceDepthSideCount.argtypes = [ctypes.POINTER(TConnectorAssetIdentifier), ctypes.c_int]
+        dll.GetPriceGroup.restype  = ctypes.c_int
+        dll.GetPriceGroup.argtypes = [ctypes.POINTER(TConnectorAssetIdentifier), ctypes.c_int, ctypes.c_int, ctypes.POINTER(TConnectorPriceGroup)]
+
+        bids = []
+        asks = []
+        for side, arr in [(0, bids), (1, asks)]:
+            total = dll.GetPriceDepthSideCount(ctypes.byref(asset), side)
+            for pos in range(min(40, total)):
+                grupo = TConnectorPriceGroup()
+                grupo.Version = 0
+                ret = dll.GetPriceGroup(ctypes.byref(asset), side, pos, ctypes.byref(grupo))
+                if ret == 0 and grupo.Price > 0:
+                    arr.append({"price": grupo.Price, "qty": grupo.Quantity,
+                                 "count": grupo.Count,
+                                 "theoric": bool(grupo.PriceGroupFlags & 1)})
+        if bids or asks:
+            enqueue({"type": "price_depth", "ticker": ticker, "bids": bids, "asks": asks,
+                     "timestamp": datetime.now().isoformat()})
+    except Exception as e:
+        log.error(f"_read_price_depth erro: {e}")
+
+# Referência global para o dll — necessário no consumidor da fila
+_dll_ref = None
+
 def subscribe(dll):
+    global _dll_ref
+    _dll_ref = dll
+
     _cb_refs["theo"] = TTheoreticalPriceCallback(_cb_theo)
     _cb_refs["st"]   = TChangeStateTickerCallback(_cb_state_ticker)
     dll.SetTheoreticalPriceCallback.restype  = ctypes.c_int
@@ -163,12 +247,32 @@ def subscribe(dll):
     dll.SetChangeStateTickerCallback.restype  = ctypes.c_int
     dll.SetChangeStateTickerCallback.argtypes = [TChangeStateTickerCallback]
     dll.SetChangeStateTickerCallback(_cb_refs["st"])
-    dll.SubscribeTicker.restype     = ctypes.c_int
-    dll.SubscribeTicker.argtypes    = [ctypes.c_wchar_p, ctypes.c_wchar_p]
-    dll.SubscribeOfferBook.restype  = ctypes.c_int
-    dll.SubscribeOfferBook.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+
+    # ── SubscribePriceDepth (Livro de Profundidade real) ──────────────────
+    # DIFERENTE de SubscribeOfferBook — esta API usa TConnectorAssetIdentifier
+    # e não crasha na DLL 4.0.0.40
+    _cb_refs["pd"] = TConnectorPriceDepthCallback(_cb_price_depth)
+    dll.SetPriceDepthCallback.restype  = ctypes.c_int
+    dll.SetPriceDepthCallback.argtypes = [TConnectorPriceDepthCallback]
+    dll.SetPriceDepthCallback(_cb_refs["pd"])
+
+    dll.SubscribeTicker.restype        = ctypes.c_int
+    dll.SubscribeTicker.argtypes       = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+    dll.SubscribePriceDepth.restype    = ctypes.c_int
+    dll.SubscribePriceDepth.argtypes   = [ctypes.POINTER(TConnectorAssetIdentifier)]
+    dll.SubscribeOfferBook.restype     = ctypes.c_int
+    dll.SubscribeOfferBook.argtypes    = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+
     for s in SYMBOLS:
-        log.info(f"Subscribe [{s}] T={dll.SubscribeTicker(s, EXCHANGE_BMF)} O={dll.SubscribeOfferBook(s, EXCHANGE_BMF)}")
+        t = dll.SubscribeTicker(s, EXCHANGE_BMF)
+        # SubscribePriceDepth com TConnectorAssetIdentifier
+        asset = TConnectorAssetIdentifier()
+        asset.Version  = 0
+        asset.Ticker   = s
+        asset.Exchange = EXCHANGE_BMF
+        asset.FeedType = 0
+        pd = dll.SubscribePriceDepth(ctypes.byref(asset))
+        log.info(f"Subscribe [{s}] Ticker={t} PriceDepth={pd}")
 
 def dll_thread(dll):
     try:
