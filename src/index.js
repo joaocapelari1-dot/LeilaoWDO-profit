@@ -227,6 +227,33 @@ PROFIT_FORWARD.forEach(evt => {
     const book = normalizer.processBook(d);
     if (book) bus.emit('book:update:dol', book);
   });
+
+  // Price Depth real via ProfitBridge (SubscribePriceDepth + GetPriceGroup)
+  // Este é o livro de profundidade REAL da DLL — substitui o sintético do TinyBook
+  bus.on('profit:price_depth', (d) => {
+    if (!d || !d.ticker) return;
+    const WDO_SYMS = ['WDO','WDON26','WDOQ26','WDOV26'];
+    const DOL_SYMS = ['DOL','DOLN26','DOLQ26','DOLV26'];
+    const sym = d.ticker;
+    const isWDO = WDO_SYMS.some(s => sym.includes(s));
+    const isDOL = DOL_SYMS.some(s => sym.includes(s));
+    if (!isWDO && !isDOL) return;
+    const book = {
+      symbol:        sym,
+      bids:          (d.bids || []).map(b => ({ price: b.price, qty: b.qty, count: b.count })),
+      asks:          (d.asks || []).map(a => ({ price: a.price, qty: a.qty, count: a.count })),
+      bid_vol_total: (d.bids || []).reduce((s,b) => s + b.qty, 0),
+      ask_vol_total: (d.asks || []).reduce((s,a) => s + a.qty, 0),
+      imbalance:     0,
+      source:        'price_depth_real',
+      timestamp:     Date.now(),
+    };
+    if (isWDO) bus.emit('book:update', book);
+    else       bus.emit('book:update:dol', book);
+    // Notificar MDIL — livro real chegou
+    profitClient.mdil?.onOfferBook(sym, book.bids.length);
+    log.info(\`[PRICE_DEPTH] \${sym} bids=\${book.bids.length} asks=\${book.asks.length} source=real\`);
+  });
   bus.on('cedro:trade:wdo',(d) => normalizer.processTrade(d));
   bus.on('cedro:trade:dol',(d) => normalizer.processTrade(d));
   bus.on('normalized:tick', (d) => features.onTick(d));
