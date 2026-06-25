@@ -310,12 +310,17 @@ async def railway_client():
                     try:
                         for _ in range(50):
                             msg = event_queue.get_nowait()
-                            # price_depth_update é processado internamente — não enviar ao Railway
+                            # price_depth_update — processar em thread para não bloquear event loop
                             if msg.get('type') == 'price_depth_update':
                                 ut = msg.get('update_type', -1)
                                 # Ler book completo nos eventos: FullBook(4), Flush(6), Add(0), Edit(1)
                                 if ut in (0, 1, 4, 6) and _dll_ref:
-                                    _read_price_depth(_dll_ref, msg['ticker'])
+                                    # Rodar GetPriceGroup em thread separada (DLL síncrona)
+                                    import asyncio as _aio
+                                    loop = _aio.get_event_loop()
+                                    ticker_cap = msg['ticker']
+                                    dll_cap = _dll_ref
+                                    loop.run_in_executor(None, lambda: _read_price_depth(dll_cap, ticker_cap))
                             else:
                                 events.append(msg)
                     except queue.Empty:
