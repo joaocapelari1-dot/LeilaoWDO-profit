@@ -664,7 +664,7 @@ export function MapaForca({ features, trades = [] }) {
 // ──────────────────────────────────────────────────
 const MIN_LOT_DISPLAY = 1
 
-export function SuperDOM({ book, features, levels = 40 }) {
+export function SuperDOM({ book, features, mdilStatus, levels = 40 }) {
   const scrollRef = useRef(null)
   const prevPrice = useRef(null)
 
@@ -770,7 +770,7 @@ export function SuperDOM({ book, features, levels = 40 }) {
 
 
 // ──────────────────────────────────────────────────
-export function SuperDOMDOL({ dolFeatures, bookDol, dolTick, levels = 40 }) {
+export function SuperDOMDOL({ dolFeatures, bookDol, dolTick, mdilStatus, levels = 40 }) {
   const scrollRef = useRef(null)
   const prevPrice = useRef(null)
 
