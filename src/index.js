@@ -163,7 +163,7 @@ PROFIT_FORWARD.forEach(evt => {
 
   // Eventos que chegam ao main (throttled)
   const BROADCAST_EVENTS = [
-    'normalized:tick', 'book:update', 'market:features', 'feature:wdo', 'feature:dol',
+    'normalized:tick', 'book:update', 'book:update:dol', 'market:features', 'feature:wdo', 'feature:dol',
     'ai:analise', 'risk:snapshot', 'risk:approved', 'risk:rejected',
     'risk:window_open', 'risk:window_aborted', 'execution:fill',
     'execution:close', 'iceberg:detected', 'context:gap',
