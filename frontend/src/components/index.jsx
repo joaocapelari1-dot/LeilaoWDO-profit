@@ -713,6 +713,8 @@ export function SuperDOM({ book, features, mdilStatus, levels = 40 }) {
     <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden', display:'flex', flexDirection:'column', height:'100%' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 8px', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
         <span style={{ fontSize:9, color:C.gold, letterSpacing:1, fontFamily:'monospace' }}>SUPER DOM · WDO MINI</span>
+          {mdilStatus?.synthetic && <span style={{fontSize:7,color:'#f59e0b',border:'1px solid #f59e0b44',borderRadius:2,padding:'0 2px',marginLeft:4}}>SIMULADO</span>}
+          {mdilStatus?.mqs != null && <span style={{fontSize:7,color:mdilStatus.mqs>=85?'#10b981':mdilStatus.mqs>=60?'#f59e0b':'#ef4444',marginLeft:4}}>MQS {mdilStatus.mqs}</span>}
         <span style={{ fontSize:9, color:C.muted, fontFamily:'monospace' }}>{book?.symbol || 'WDON26'}</span>
       </div>
       <div style={{ display:'flex', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
