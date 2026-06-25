@@ -1,7 +1,7 @@
 'use strict';
 /**
- * ProfitClient v3.0 Ã¢ÂÂ Arquitetura Invertida
- * VPS conecta no Railway via /bridge. Este adapter escuta eventos profit:* no bus.
+ * ProfitClient v3.1 — Arquitetura Invertida
+ * TinyBook nao sobrescreve OfferBook real quando >= 5 niveis disponiveis.
  */
 const WDO_SYMBOLS = ['WDOFUT','WDON26','WDOQ26','WDOV26','WDO'];
 const DOL_SYMBOLS = ['DOLFUT','DOLN26','DOLQ26','DOLV26','DOL'];
@@ -12,7 +12,7 @@ class ProfitClient {
     this.lastWDO={}; this.lastDOL={}; this.theorWDO={price:0,qty:0}; this.theorDOL={price:0,qty:0};
     this.auctionActive={};
   }
-  start() { console.log('[PROFIT-CLIENT] v3.0 Modo Invertido Ã¢ÂÂ aguardando VPS em /bridge'); this._listenBus(); }
+  start() { console.log('[PROFIT-CLIENT] v3.1 Modo Invertido — aguardando VPS em /bridge'); this._listenBus(); }
   disconnect() {}
   _isWDO(s){return WDO_SYMBOLS.some(x=>s.includes(x));}
   _isDOL(s){return DOL_SYMBOLS.some(x=>s.includes(x));}
@@ -55,53 +55,67 @@ class ProfitClient {
   }
   _onTickerState(msg) {
     const sym=msg.ticker||''; this.auctionActive[sym]=msg.in_auction||false;
-    if(msg.in_auction) console.log(`[PROFIT-CLIENT] Ã°ÂÂÂ LEILÃÂO ATIVO: ${sym}`);
+    if(msg.in_auction) console.log(`[PROFIT-CLIENT] LEILAO ATIVO: ${sym}`);
     this.bus.emit('cedro:ticker_state',{symbol:sym,state:msg.state,in_auction:msg.in_auction,timestamp:msg.timestamp});
   }
   _onOfferBook(msg) {
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
+    // Log diagnostico
+    if(!this._offerCounts) this._offerCounts={};
+    this._offerCounts[sym]=(this._offerCounts[sym]||0)+1;
+    const cnt=this._offerCounts[sym];
+    if(cnt<=50||cnt%500===0) console.log('[OFFER_BOOK]',sym,msg.action,'side='+msg.side,'qty='+msg.quantity,'p='+msg.price,'#'+cnt);
     const book=isWDO?this.bookWDO:this.bookDOL;
     if(msg.action==='FULL_BOOK'){
-    if(!book._snapActive){book.bids={};book.asks={};book._snapActive=true;}
-    if(msg.price==null) return;
-    const key=Math.round(msg.price*100);
-    const side=msg.side==='BUY'?book.bids:book.asks;
-    const prev=side[key]?.qty||0;
-    side[key]={price:msg.price,qty:prev+(msg.quantity||0),agent:msg.agent||0};
-    const bids=Object.values(book.bids).sort((a,b)=>b.price-a.price).slice(0,20);
-    const asks=Object.values(book.asks).sort((a,b)=>a.price-b.price).slice(0,20);
-    if(isWDO)this.bus.emit('cedro:book:wdo',{symbol:sym,bids,asks,timestamp:Date.now()});
-    else this.bus.emit('cedro:book:dol',{symbol:sym,bids,asks,timestamp:Date.now()});
-    return;
+      if(!book._snapActive){book.bids={};book.asks={};book._snapActive=true;}
+      if(msg.price==null) return;
+      const key=Math.round(msg.price*100);
+      const side=msg.side==='BUY'?book.bids:book.asks;
+      const prev=side[key]?.qty||0;
+      side[key]={price:msg.price,qty:prev+(msg.quantity||0),agent:msg.agent||0};
+      const bids=Object.values(book.bids).sort((a,b)=>b.price-a.price).slice(0,20);
+      const asks=Object.values(book.asks).sort((a,b)=>a.price-b.price).slice(0,20);
+      if(isWDO)this.bus.emit('cedro:book:wdo',{symbol:sym,bids,asks,timestamp:Date.now(),source:'offer_book'});
+      else this.bus.emit('cedro:book:dol',{symbol:sym,bids,asks,timestamp:Date.now(),source:'offer_book'});
+      return;
     }
     book._snapActive=false;
     if(msg.price==null) return;
     const key=Math.round(msg.price*100);
     if(msg.action==='DELETE'||!msg.quantity){if(msg.side==='BUY')delete book.bids[key];else delete book.asks[key];}
     else{
-    const side=msg.side==='BUY'?book.bids:book.asks;
-    if(msg.action==='INSERT'){const prev=side[key]?.qty||0;side[key]={price:msg.price,qty:prev+msg.quantity,agent:msg.agent||0};}
-    else{side[key]={price:msg.price,qty:msg.quantity,agent:msg.agent||0};}
+      const side=msg.side==='BUY'?book.bids:book.asks;
+      if(msg.action==='INSERT'){const prev=side[key]?.qty||0;side[key]={price:msg.price,qty:prev+msg.quantity,agent:msg.agent||0};}
+      else{side[key]={price:msg.price,qty:msg.quantity,agent:msg.agent||0};}
     }
     const bids=Object.values(book.bids).sort((a,b)=>b.price-a.price).slice(0,20);
     const asks=Object.values(book.asks).sort((a,b)=>a.price-b.price).slice(0,20);
-    if(isWDO)this.bus.emit('cedro:book:wdo',{symbol:sym,bids,asks,timestamp:Date.now()});
-    else this.bus.emit('cedro:book:dol',{symbol:sym,bids,asks,timestamp:Date.now()});
+    if(isWDO)this.bus.emit('cedro:book:wdo',{symbol:sym,bids,asks,timestamp:Date.now(),source:'offer_book'});
+    else this.bus.emit('cedro:book:dol',{symbol:sym,bids,asks,timestamp:Date.now(),source:'offer_book'});
   }
   _onTinyBook(msg) {
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
     if(isWDO){if(msg.side==='BUY')this.lastWDO.bid=msg.price;else this.lastWDO.ask=msg.price;}
     else{if(msg.side==='BUY')this.lastDOL.bid=msg.price;else this.lastDOL.ask=msg.price;}
+    // NAO sobrescrever OfferBook real com dados sinteticos
+    const realBook = isWDO ? this.bookWDO : this.bookDOL;
+    const bidCount = Object.keys(realBook.bids||{}).length;
+    const askCount = Object.keys(realBook.asks||{}).length;
+    if(bidCount >= 5 || askCount >= 5) {
+      return; // OfferBook real disponivel — ignorar TinyBook
+    }
+    // Log diagnostico (quando sem OfferBook real)
+    if(!this._tinyCounts) this._tinyCounts={};
+    this._tinyCounts[sym]=(this._tinyCounts[sym]||0)+1;
+    if(this._tinyCounts[sym]===1||this._tinyCounts[sym]%200===0) console.log('[TINY_BOOK]',sym,'SINTETICO (sem OfferBook real) #'+this._tinyCounts[sym]);
     const ref = isWDO ? this.lastWDO : this.lastDOL;
     const bid = ref.bid || 0;
     const ask = ref.ask || 0;
     if(!bid || !ask || bid >= ask) return;
     const TICK = 0.5;
     const LEVELS = 40;
-    // Gera 40 níveis com qty decrescente a partir do top of book
-    // Simula profundidade visual no SuperDOM mesmo sem OfferBook real
     const bids = Array.from({length:LEVELS},(_,i)=>({
       price: Math.round((bid - i*TICK)*100)/100,
       qty: Math.max(1, Math.round(50 * Math.exp(-i * 0.15)))
@@ -115,7 +129,7 @@ class ProfitClient {
     const book = {symbol:sym,bids,asks,bid_vol_total:totalBid,ask_vol_total:totalAsk,
       imbalance:0,best_bid:bid,best_ask:ask,timestamp:Date.now(),source:'tiny_book'};
     if(isWDO) this.bus.emit('cedro:book:wdo', book);
-    else      this.bus.emit('cedro:book:dol', book);
+    else this.bus.emit('cedro:book:dol', book);
   }
   _onDaily(msg) {
     const sym=msg.ticker||''; if(!this._isWDO(sym)) return;
