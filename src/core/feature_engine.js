@@ -50,7 +50,8 @@ class FeatureEngine {
     this.bus.emit('feature:update', fv);
     if (tick.symbol === 'WDOFUT' || tick.symbol?.startsWith('WDO')) {
       // Calcular confluence sempre que DOL tem dados (não só no leilão)
-      const dolHasData = this.dol.auctionData.theoreticalPrice || this.lastDOL?.last;
+      const dolLastTick = this.dol.ticks[this.dol.ticks.length - 1];
+      const dolHasData = this.dol.auctionData.theoreticalPrice || dolLastTick?.last;
       if (dolHasData) {
         fv.confluence = this._calcConfluence();
       }
