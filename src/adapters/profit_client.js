@@ -1,18 +1,25 @@
 'use strict';
 /**
- * ProfitClient v3.1 — Arquitetura Invertida
+ * ProfitClient v3.2 — MDIL integrado
  * TinyBook nao sobrescreve OfferBook real quando >= 5 niveis disponiveis.
+ * MDIL detecta ghost feed e marca dados sintéticos.
  */
 const WDO_SYMBOLS = ['WDOFUT','WDON26','WDOQ26','WDOV26','WDO'];
 const DOL_SYMBOLS = ['DOLFUT','DOLN26','DOLQ26','DOLV26','DOL'];
+const { MarketDataIntegrityLayer } = require('../engines/mdil');
 
 class ProfitClient {
   constructor(bus) {
     this.bus=bus; this.bookWDO={bids:{},asks:{}}; this.bookDOL={bids:{},asks:{}};
     this.lastWDO={}; this.lastDOL={}; this.theorWDO={price:0,qty:0}; this.theorDOL={price:0,qty:0};
     this.auctionActive={};
+    this.mdil = new MarketDataIntegrityLayer(bus);
   }
-  start() { console.log('[PROFIT-CLIENT] v3.1 Modo Invertido — aguardando VPS em /bridge'); this._listenBus(); }
+  start() {
+    console.log('[PROFIT-CLIENT] v3.2 Modo Invertido — MDIL ativo — aguardando VPS em /bridge');
+    this.mdil.start();
+    this._listenBus();
+  }
   disconnect() {}
   _isWDO(s){return WDO_SYMBOLS.some(x=>s.includes(x));}
   _isDOL(s){return DOL_SYMBOLS.some(x=>s.includes(x));}
@@ -30,6 +37,7 @@ class ProfitClient {
     this.bus.on('profit:daily',(e)=>this._onDaily(e));
   }
   _onTrade(msg) {
+    this.mdil.onTrade(msg.ticker || msg.symbol || '');
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
     const agressor=msg.aggressor==='BUY'?'buy':msg.aggressor==='SELL'?'sell':'balanced';
@@ -59,6 +67,10 @@ class ProfitClient {
     this.bus.emit('cedro:ticker_state',{symbol:sym,state:msg.state,in_auction:msg.in_auction,timestamp:msg.timestamp});
   }
   _onOfferBook(msg) {
+    // Notificar MDIL — recebeu OfferBook real
+    const _sym2 = msg.ticker || '';
+    const _bids = Object.values(this.bookWDO.bids).length + Object.values(this.bookDOL.bids).length;
+    this.mdil.onOfferBook(_sym2, _bids);
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
     // Log diagnostico
@@ -95,6 +107,8 @@ class ProfitClient {
     else this.bus.emit('cedro:book:dol',{symbol:sym,bids,asks,timestamp:Date.now(),source:'offer_book'});
   }
   _onTinyBook(msg) {
+    // Notificar MDIL — apenas TinyBook chegou
+    this.mdil.onTinyBook(msg.ticker || '');
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
     if(isWDO){if(msg.side==='BUY')this.lastWDO.bid=msg.price;else this.lastWDO.ask=msg.price;}
