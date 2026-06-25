@@ -308,8 +308,18 @@ async def railway_client():
                 while True:
                     events = []
                     try:
-                        for _ in range(50): events.append(event_queue.get_nowait())
-                    except queue.Empty: pass
+                        for _ in range(50):
+                            msg = event_queue.get_nowait()
+                            # price_depth_update é processado internamente — não enviar ao Railway
+                            if msg.get('type') == 'price_depth_update':
+                                ut = msg.get('update_type', -1)
+                                # Ler book completo nos eventos: FullBook(4), Flush(6), Add(0), Edit(1)
+                                if ut in (0, 1, 4, 6) and _dll_ref:
+                                    _read_price_depth(_dll_ref, msg['ticker'])
+                            else:
+                                events.append(msg)
+                    except queue.Empty:
+                        pass
                     if events:
                         await ws.send(safe_json(events) if len(events) > 1 else safe_json(events[0]))
                     # Heartbeat a cada 30s
@@ -351,7 +361,7 @@ if __name__ == "__main__":
 
     acquire_lock()
     try:
-        dll = ctypes.CDLL(str(p))
+        dll = ctypes.WinDLL(str(p))  # stdcall — conforme documentação Nelogica
         threading.Thread(target=dll_thread, args=(dll,), daemon=True).start()
         asyncio.run(railway_client())
     except KeyboardInterrupt:
