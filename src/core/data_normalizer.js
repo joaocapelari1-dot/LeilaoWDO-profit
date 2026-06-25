@@ -97,8 +97,10 @@ class DataNormalizer {
 
   _validateBook(raw) {
     if (!raw || !Array.isArray(raw.bids) || !Array.isArray(raw.asks)) return null;
-    const bids = raw.bids.filter(b => b.price > 0 && b.qty > 0).sort((a,b) => b.price - a.price);
-    const asks = raw.asks.filter(a => a.price > 0 && a.qty > 0).sort((a,b) => a.price - b.price);
+    // price_depth_real: qty pode ser 0 em alguns níveis mas price é válido — não filtrar por qty
+    const isRealDepth = raw.source === 'price_depth_real';
+    const bids = raw.bids.filter(b => b.price > 0 && (isRealDepth || b.qty > 0)).sort((a,b) => b.price - a.price);
+    const asks = raw.asks.filter(a => a.price > 0 && (isRealDepth || a.qty > 0)).sort((a,b) => a.price - b.price);
     const bidVol = bids.reduce((s,b) => s+b.qty, 0);
     const askVol = asks.reduce((s,a) => s+a.qty, 0);
     return {
