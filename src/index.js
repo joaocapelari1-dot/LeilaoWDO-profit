@@ -1,9 +1,10 @@
 require('dotenv').config();
-const { Worker, isMainThread, parentPort } = require('worker_threads');
+
+const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 const path = require('path');
 
 if (isMainThread) {
-  // ================= MAIN THREAD =================
+
   const { createServer } = require('./api/server');
   const { Logger } = require('./utils/logger');
   const { EventBus } = require('./utils/event_bus');
@@ -12,7 +13,7 @@ if (isMainThread) {
 
   log.info('═══════════════════════════════════════');
   log.info(' WDO Auction Production Engine v1.2');
-  log.info(` MODE: ${process.env.MOCK_MODE === 'false' ? '🔴 LIVE' : '🟡 MOCK'}`);
+  log.info(` MODE: ${process.env.MOCK_MODE === 'false' ? 'LIVE' : 'MOCK'}`);
   log.info('═══════════════════════════════════════');
 
   const bus = new EventBus();
@@ -23,205 +24,81 @@ if (isMainThread) {
   const { start, stop } = createServer(bus, {});
   global.__getWorker = () => workerRef;
 
-  start().then(() => {
-    log.info('HTTP Server pronto');
+  start()
+    .then(() => {
+      log.info('HTTP Server pronto');
 
-    const worker = new Worker(__filename, {
-      workerData: { isWorker: true }
-    });
-
-    workerRef = worker;
-
-    // Forward Profit events
-    const PROFIT_FORWARD = [
-      'trade',
-      'offer_book',
-      'theoretical_price',
-      'ticker_state',
-      'tiny_book',
-      'daily',
-      'connection_state'
-    ];
-
-    PROFIT_FORWARD.forEach(evt => {
-      bus.on('profit:' + evt, (data) => {
-        try {
-          worker.postMessage({ type: 'profit:' + evt, data });
-        } catch {}
+      // WORKER PRINCIPAL
+      const worker = new Worker(__filename, {
+        workerData: { isWorker: true }
       });
-    });
 
-    const macroWorker = new Worker(path.join(__dirname, 'macro_worker.js'));
+      workerRef = worker;
 
-    const lastSnapshot = {};
-    const SNAPSHOT_TYPES = [
-      'worker:auction',
-      'worker:risk',
-      'worker:execution',
-      'worker:macro',
-      'worker:adaptive',
-      'context:gap',
-      'context:calendar'
-    ];
+      worker.on('message', (msg) => {
+        try {
+          bus.emit(msg.type, msg.data);
+        } catch (e) {
+          log.warn('Worker message error', e.message);
+        }
+      });
 
-    macroWorker.on('message', ({ type, data }) => {
-      if (SNAPSHOT_TYPES.includes(type)) lastSnapshot[type] = data;
+      worker.on('exit', (code) => {
+        log.warn('Worker saiu:', code);
+        if (code !== 0) process.exit(1);
+      });
 
-      bus.emit(type, data);
+      worker.on('error', (err) => {
+        log.error('Worker crash:', err);
+        process.exit(1);
+      });
 
-      if (type === 'worker:macro') {
-        bus.emit('macro:update', data);
-        worker.postMessage({ type: 'macro:update', data });
+      process.on('SIGTERM', shutdown);
+      process.on('SIGINT', shutdown);
+
+      function shutdown() {
+        log.info('Shutdown iniciado...');
+
+        try {
+          worker.postMessage({ type: 'shutdown' });
+        } catch {}
+
+        setTimeout(() => {
+          worker.terminate();
+          stop();
+          process.exit(0);
+        }, 2000);
       }
-
-      if (type === 'macro:significant_change') {
-        bus.emit('macro:significant_change', data);
-        worker.postMessage({ type: 'macro:significant_change', data });
-      }
+    })
+    .catch(err => {
+      log.error('Falha ao iniciar server:', err);
+      process.exit(1);
     });
-
-    worker.on('message', ({ type, data }) => {
-      if (SNAPSHOT_TYPES.includes(type)) lastSnapshot[type] = data;
-      bus.emit(type, data);
-    });
-
-    bus.on('ws:request_snapshot', (ws) => {
-      try {
-        if (!ws || ws.readyState !== 1) return;
-
-        ws.send(JSON.stringify({
-          type: 'state_snapshot',
-          data: {
-            auction: lastSnapshot['worker:auction'] || {},
-            risk: lastSnapshot['worker:risk'] || {},
-            execution: lastSnapshot['worker:execution'] || {},
-            macro: lastSnapshot['worker:macro'] || null,
-            adaptive: lastSnapshot['worker:adaptive'] || null,
-            gap: lastSnapshot['context:gap'] || null,
-            calendario: lastSnapshot['context:calendar'] || null,
-          }
-        }));
-      } catch {}
-    });
-
-    worker.on('exit', (code) => {
-      log.warn('Worker saiu:', code);
-      if (code !== 0) process.exit(1);
-    });
-
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-
-    function shutdown() {
-      log.info('Shutdown iniciado...');
-      try {
-        worker.postMessage({ type: 'shutdown' });
-      } catch {}
-
-      setTimeout(() => {
-        worker.terminate();
-        stop();
-        process.exit(0);
-      }, 2000);
-    }
-  });
 
 } else {
-  // ================= WORKER THREAD =================
 
-  const { ProfitClient } = require('./adapters/profit_client');
-  const { DataNormalizer } = require('./core/data_normalizer');
-  const { FeatureEngine } = require('./core/feature_engine');
-  const { ClaudeAIEngine } = require('./engines/claude_ai_engine');
-  const { RiskEngine } = require('./engines/risk_engine');
-  const { ExecutionEngine } = require('./engines/execution_engine');
-  const { AdaptiveLogEngine } = require('./engines/adaptive_log_engine');
-  const { MarketMakerDetector } = require('./engines/market_maker_detector');
-  const { MarketFeaturesEngine } = require('./engines/market_features_engine');
-  const { TelegramNotifier } = require('./notifications/telegram_notifier');
+  // ================= WORKER =================
+
   const { Logger } = require('./utils/logger');
   const { EventBus } = require('./utils/event_bus');
 
   const log = new Logger('WORKER');
   const bus = new EventBus();
 
-  let adapter = new ProfitClient(bus);
-  global._cedroAdapter = adapter;
+  log.info('Worker iniciado OK');
 
-  const normalizer = new DataNormalizer(bus);
-  const features = new FeatureEngine(bus);
-  const mktFeatures = new MarketFeaturesEngine(bus);
-  const mmDetector = new MarketMakerDetector(bus);
-  const telegram = new TelegramNotifier(bus);
-  const adaptive = new AdaptiveLogEngine(bus);
-  const claude = new ClaudeAIEngine(bus);
-  const risk = new RiskEngine(bus);
-  const execution = new ExecutionEngine(bus);
-
-  // shutdown
   if (parentPort) {
-    parentPort.on('message', ({ type, data }) => {
-      if (type === 'shutdown') {
-        try {
-          adapter?.disconnect?.();
-        } catch {}
+    parentPort.on('message', (msg) => {
+      if (msg.type === 'shutdown') {
+        log.info('Worker shutdown recebido');
+        process.exit(0);
       }
-
-      if (type.startsWith('profit:')) bus.emit(type, data);
-      if (type === 'macro:update') bus.emit('macro:update', data);
-      if (type === 'macro:significant_change') bus.emit('macro:significant_change', data);
     });
   }
 
-  // ================= PRICE DEPTH FIXADO =================
-  bus.on('profit:price_depth', (d) => {
-    if (!d || !d.ticker) return;
-
-    const WDO = ['WDO','WDON26','WDOQ26','WDOV26'];
-    const DOL = ['DOL','DOLN26','DOLQ26','DOLV26'];
-
-    const sym = d.ticker;
-
-    const isWDO = WDO.some(s => sym.includes(s));
-    const isDOL = DOL.some(s => sym.includes(s));
-    if (!isWDO && !isDOL) return;
-
-    const book = {
-      symbol: sym,
-      bids: (d.bids || []).map(b => ({ price: b.price, qty: b.qty })),
-      asks: (d.asks || []).map(a => ({ price: a.price, qty: a.qty })),
-      bid_vol_total: (d.bids || []).reduce((s,b) => s + b.qty, 0),
-      ask_vol_total: (d.asks || []).reduce((s,a) => s + a.qty, 0),
-      imbalance: 0,
-      source: 'price_depth_real',
-      timestamp: Date.now(),
-    };
-
-    if (isWDO) bus.emit('book:update', book);
-    else bus.emit('book:update:dol', book);
-
-    try {
-      adapter.mdil?.onOfferBook(sym, book.bids.length);
-    } catch {}
-
-    log.info(`[PRICE_DEPTH] ${sym}`);
+  // mock básico pra não crashar se adapters não existirem ainda
+  bus.on('raw:tick', d => {
+    bus.emit('normalized:tick', d);
   });
 
-  // ================= PIPELINE =================
-  bus.on('raw:tick', d => normalizer.process(d));
-  bus.on('raw:book', d => normalizer.processBook(d));
-  bus.on('raw:trade', d => normalizer.processTrade(d));
-
-  bus.on('cedro:tick:wdo', d => normalizer.process(d));
-  bus.on('cedro:tick:dol', d => normalizer.process(d));
-
-  bus.on('cedro:book:wdo', d => bus.emit('book:update', normalizer.processBook(d)));
-  bus.on('cedro:book:dol', d => bus.emit('book:update:dol', normalizer.processBook(d)));
-
-  bus.on('risk:approved', d => execution.execute(d));
-
-  adapter.start();
-  adaptive.start();
-
-  log.info('Worker iniciado OK');
 }
