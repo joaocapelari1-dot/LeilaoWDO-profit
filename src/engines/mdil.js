@@ -1,116 +1,51 @@
 /**
- * MDIL Engine - versão estável (fallback seguro)
- * Evita crash por MODULE_NOT_FOUND e mantém o sistema vivo
+ * MDIL Engine - versão corrigida
+ * Corrige erro: logger.info is not a function
  */
 
-const EventEmitter = require('events');
+const createLogger = require('../utils/logger');
+const logger = createLogger('MDIL');
 
-// ===============================
-// LOGGER SAFE (NUNCA QUEBRA)
-// ===============================
-let logger;
+class MDILEngine {
+  constructor() {
+    this.initialized = false;
 
-try {
-  logger = require('../utils/logger');
-} catch (e) {
-  logger = {
-    info: (...args) => console.log('[INFO]', ...args),
-    warn: (...args) => console.warn('[WARN]', ...args),
-    error: (...args) => console.error('[ERROR]', ...args),
-    debug: (...args) => console.log('[DEBUG]', ...args),
-  };
-}
-
-// ===============================
-// ENGINE CORE
-// ===============================
-class MDILEngine extends EventEmitter {
-  constructor(config = {}) {
-    super();
-
-    this.config = {
-      enabled: true,
-      mode: 'live',
-      ...config,
-    };
-
-    this.state = {
-      running: false,
-      lastTick: null,
-    };
-
-    logger.info('[MDIL] Engine instanciado');
+    logger.info('MDIL Engine sendo inicializado...');
   }
 
-  // ===============================
-  // START
-  // ===============================
+  init() {
+    try {
+      logger.info('Inicializando MDIL...');
+
+      // exemplo de inicialização segura
+      this.initialized = true;
+
+      logger.info('MDIL inicializado com sucesso');
+    } catch (err) {
+      logger.error(`Erro ao inicializar MDIL: ${err.message}`);
+      throw err;
+    }
+  }
+
   start() {
-    try {
-      if (this.state.running) {
-        logger.warn('[MDIL] Engine já está rodando');
-        return;
-      }
-
-      this.state.running = true;
-
-      logger.info('[MDIL] Iniciando engine...');
-      this.emit('start');
-
-      // loop simples seguro (placeholder)
-      this._loop();
-
-    } catch (err) {
-      logger.error('[MDIL] Erro ao iniciar engine:', err);
-      this.state.running = false;
+    if (!this.initialized) {
+      this.init();
     }
+
+    logger.info('MDIL Engine rodando...');
   }
 
-  // ===============================
-  // STOP
-  // ===============================
   stop() {
-    logger.warn('[MDIL] Parando engine...');
-    this.state.running = false;
-    this.emit('stop');
-  }
-
-  // ===============================
-  // LOOP (SAFE)
-  // ===============================
-  _loop() {
-    if (!this.state.running) return;
-
-    try {
-      this.state.lastTick = Date.now();
-
-      // aqui entra lógica futura (macro / signal / etc)
-      logger.debug('[MDIL] tick', this.state.lastTick);
-
-      this.emit('tick', this.state.lastTick);
-
-    } catch (err) {
-      logger.error('[MDIL] erro no loop:', err);
-    }
-
-    // loop controlado (evita CPU 100%)
-    setTimeout(() => this._loop(), 1000);
-  }
-
-  // ===============================
-  // STATUS
-  // ===============================
-  getStatus() {
-    return {
-      running: this.state.running,
-      mode: this.config.mode,
-      lastTick: this.state.lastTick,
-    };
+    logger.warn('MDIL Engine sendo finalizado...');
+    this.initialized = false;
   }
 }
 
-// ===============================
-// EXPORT SAFE
-// ===============================
-module.exports = new MDILEngine();
-module.exports.MDILEngine = MDILEngine;
+// export padrão
+module.exports = MDILEngine;
+
+// caso o arquivo esteja sendo instanciado automaticamente em outro lugar
+if (require.main === module) {
+  const engine = new MDILEngine();
+  engine.start();
+}
