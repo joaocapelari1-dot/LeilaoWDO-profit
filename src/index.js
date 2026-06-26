@@ -252,8 +252,7 @@ PROFIT_FORWARD.forEach(evt => {
     else       bus.emit('book:update:dol', book);
     // Notificar MDIL — livro real chegou
     profitClient.mdil?.onOfferBook(sym, book.bids.length);
-    log.info(\`[PRICE_DEPTH] \${sym} bids=\${book.bids.length} asks=\${book.asks.length} source=real\`);
-  });
+    log.info(`[PRICE_DEPTH] ${sym} bids=${book.bids.length} asks=${book.asks.length} source=real`);
   bus.on('cedro:trade:wdo',(d) => normalizer.processTrade(d));
   bus.on('cedro:trade:dol',(d) => normalizer.processTrade(d));
   bus.on('normalized:tick', (d) => features.onTick(d));
