@@ -1,19 +1,34 @@
-const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
-const MIN_LEVEL = LEVELS[process.env.LOG_LEVEL || 'info'];
+const chalk = require('chalk');
 
 class Logger {
-  constructor(module) {
-    this.module = module.padEnd(14);
+  constructor(context = 'APP') {
+    this.context = context;
   }
-  _fmt(level, args) {
-    const ts  = new Date().toISOString().slice(11, 23); // HH:mm:ss.ms
-    const lvl = level.toUpperCase().padEnd(5);
-    console.log(`${ts} [${lvl}] [${this.module}]`, ...args);
+
+  _format(level, msg) {
+    const time = new Date().toISOString().split('T')[1].split('.')[0];
+    return `[${time}] [${level}] [${this.context}] ${msg}`;
   }
-  debug(...a) { if (MIN_LEVEL <= 0) this._fmt('debug', a); }
-  info(...a)  { if (MIN_LEVEL <= 1) this._fmt('info',  a); }
-  warn(...a)  { if (MIN_LEVEL <= 2) this._fmt('warn',  a); }
-  error(...a) { if (MIN_LEVEL <= 3) this._fmt('error', a); }
+
+  info(msg) {
+    console.log(chalk.cyan(this._format('INFO ', msg)));
+  }
+
+  warn(msg) {
+    console.log(chalk.yellow(this._format('WARN ', msg)));
+  }
+
+  error(msg) {
+    console.log(chalk.red(this._format('ERROR', msg)));
+  }
+
+  debug(msg) {
+    if (process.env.DEBUG) {
+      console.log(chalk.gray(this._format('DEBUG', msg)));
+    }
+  }
 }
 
-module.exports = { Logger };
+// export compatível com require()
+module.exports = (context) => new Logger(context);
+module.exports.Logger = Logger;
