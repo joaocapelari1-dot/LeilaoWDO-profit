@@ -97,6 +97,27 @@ TConnectorPriceDepthCallback = ctypes.WINFUNCTYPE(
     ctypes.c_ubyte,             # updateType: 0=Add,1=Edit,2=Delete,4=FullBook,5=Prepare,6=Flush
 )
 
+# TConnectorTrade — struct retornada pelo SetTradeCallbackV2 (API moderna)
+class TConnectorTrade(ctypes.Structure):
+    _fields_ = [
+        ("Version",         ctypes.c_ubyte),
+        ("Ticker",          ctypes.c_wchar * 25),
+        ("Exchange",        ctypes.c_wchar * 4),
+        ("FeedType",        ctypes.c_int),
+        ("DateTime",        ctypes.c_wchar * 30),
+        ("TradeID",         ctypes.c_uint32),
+        ("Price",           ctypes.c_double),
+        ("Volume",          ctypes.c_double),
+        ("Quantity",        ctypes.c_int),
+        ("BuyAgent",        ctypes.c_int),
+        ("SellAgent",       ctypes.c_int),
+        ("TradeType",       ctypes.c_int),   # 0=compra,1=venda,2=direto,3=leilao
+        ("BrokerID",        ctypes.c_int),
+    ]
+
+# Callback moderno de trade (SetTradeCallbackV2)
+TConnectorTradeCallback = ctypes.WINFUNCTYPE(None, TConnectorTrade, ctypes.c_int)
+
 TStateCallback             = ctypes.WINFUNCTYPE(None, ctypes.c_int, ctypes.c_int)
 TProgressCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_int)
 TNewTradeCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p, ctypes.c_uint32, ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char)
@@ -255,6 +276,17 @@ def subscribe(dll):
     dll.SetPriceDepthCallback.restype  = ctypes.c_int
     dll.SetPriceDepthCallback.argtypes = [TConnectorPriceDepthCallback]
     dll.SetPriceDepthCallback(_cb_refs["pd"])
+
+    # Registrar callback moderno de trade (SetTradeCallbackV2)
+    # Documentacao Nelogica: este é o callback correto para trades em tempo real
+    _cb_refs['tv2'] = TConnectorTradeCallback(_cb_trade_v2)
+    try:
+        dll.SetTradeCallbackV2.restype  = ctypes.c_int
+        dll.SetTradeCallbackV2.argtypes = [TConnectorTradeCallback]
+        r = dll.SetTradeCallbackV2(_cb_refs['tv2'])
+        log.info(f'SetTradeCallbackV2: {r}')
+    except Exception as e:
+        log.warning(f'SetTradeCallbackV2 nao disponivel: {e} — usando callback legado')
 
     dll.SubscribeTicker.restype        = ctypes.c_int
     dll.SubscribeTicker.argtypes       = [ctypes.c_wchar_p, ctypes.c_wchar_p]
