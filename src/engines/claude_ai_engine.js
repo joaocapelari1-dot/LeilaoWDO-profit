@@ -57,7 +57,7 @@ class ClaudeAIEngine {
     // Escuta eventos
     bus.on('feature:wdo',        (f) => this._onFeatureWDO(f));
 
-    // ââ Timer por horÃ¡rio â inicia Ã s 8h55 independente de ticks Cedro ââ
+    // -- Timer por horario -- inicia as 8h55 independente de ticks --
     this._agendarInicio855();
     bus.on('feature:dol',        (f) => { this.lastDOL = f; });
     bus.on('macro:update',       (m) => { this.lastMacro = m; });
@@ -167,7 +167,7 @@ class ClaudeAIEngine {
   // ââ AnÃ¡lise principal âââââââââââââââââââââââââââââââââââââââââ
   async _analisar(motivo) {
     if (this._isAnalyzing) return;
-    // Permite anÃ¡lise com dados sÃ³ macro se Cedro ainda nÃ£o mandou ticks
+    // Permite analise com dados so macro se ProfitBridge ainda nao mandou ticks
     if (!this.lastFeatures) this.lastFeatures = {};
 
     // ââ SÃ³ analisa na janela de abertura (8h50-9h10 BRT) ââââââ
@@ -177,7 +177,7 @@ class ClaudeAIEngine {
     const m = brt.getUTCMinutes();
     const s = brt.getUTCSeconds();
     // ââ Janela de aquecimento: 8h55 â 9h00:20 ââââââââââââââââââ
-    // Cedro jÃ¡ manda theor_price + surplus + auc_vol desde 8h55 (leilÃ£o teÃ³rico)
+    // ProfitBridge manda theor_price + surplus + auc_vol desde 8h55 (leilao teorico)
     // Claude analisa com dados reais â auc_vol cresce conforme ordens casam
     const naAquecimento = (h === 8 && m >= 55) ||
                           (h === 9 && m === 0 && s <= 20);
