@@ -10,10 +10,10 @@ if (isMainThread) {
 
   const log = Logger('MAIN');
 
-  log.info('âââââââââââââââââââââââââââââââââââââââ');
+  log.info('Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ');
   log.info(' WDO Auction Production Engine v1.2');
-  log.info(` MODE: ${process.env.MOCK_MODE === 'false' ? 'ð´ LIVE' : 'ð¡ MOCK'}`);
-  log.info('âââââââââââââââââââââââââââââââââââââââ');
+  log.info(` MODE: ${process.env.MOCK_MODE === 'false' ? 'Ã°ÂÂÂ´ LIVE' : 'Ã°ÂÂÂ¡ MOCK'}`);
+  log.info('Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ');
 
   const bus = new EventBus();
   global.__bus = bus;
@@ -146,7 +146,7 @@ if (isMainThread) {
   const bus = new EventBus();
 
   let adapter = new ProfitClient(bus);
-  global._cedroAdapter = adapter;
+  global._profitAdapter = adapter;
 
   const normalizer = new DataNormalizer(bus);
   const features = new FeatureEngine(bus);
