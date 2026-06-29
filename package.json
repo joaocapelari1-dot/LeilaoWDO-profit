@@ -9,7 +9,8 @@
     "mock": "MOCK_MODE=true node src/index.js",
     "live": "MOCK_MODE=false node src/index.js",
     "test": "node tests/run_tests.js",
-    "frontend": "cd frontend && npm run dev"
+    "frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
