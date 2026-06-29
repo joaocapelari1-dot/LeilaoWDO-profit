@@ -75,11 +75,18 @@ function createServer(bus, engines = {}) {
 
       ws.on('message', (raw) => {
         try {
-          const data = JSON.parse(raw);
+          // Sanitizar -Infinity e Infinity antes do JSON.parse
+          // A DLL envia -inf como valor numerico que nao e JSON valido
+          const sanitized = raw.toString()
+            .replace(/-Infinity/g, 'null')
+            .replace(/Infinity/g, 'null')
+            .replace(/NaN/g, 'null')
+            .replace(/:-inf/gi, ':null')
+            .replace(/: -inf/gi, ': null');
+          const data = JSON.parse(sanitized);
           const arr  = Array.isArray(data) ? data : [data];
           arr.forEach(ev => {
             if (!ev.type || ev.type === 'heartbeat') return;
-            // Injetar no bus — todos os engines recebem
             bus.emit('profit:' + ev.type, ev);
           });
         } catch (e) {
