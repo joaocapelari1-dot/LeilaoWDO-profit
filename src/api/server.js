@@ -49,7 +49,7 @@ function createServer(bus, engines = {}) {
 
   const httpServer = http.createServer(app);
 
-  // ── WebSocket server unico — distingue /bridge de /ws ────────────
+  // ââ WebSocket server unico â distingue /bridge de /ws ââââââââââââ
   const wss     = new WebSocket.Server({ server: httpServer });
   const clients = new Set();   // frontends
   const bridges = new Set();   // VPS ProfitBridge
@@ -66,14 +66,14 @@ function createServer(bus, engines = {}) {
     const url    = req.url || '';
     const secret = req.headers['x-bridge-secret'] || '';
 
-    // ── Conexao do ProfitBridge (VPS) ──────────────────────────────
+    // ââ Conexao do ProfitBridge (VPS) ââââââââââââââââââââââââââââââ
     if (url === '/bridge' && secret === BRIDGE_SECRET && BRIDGE_SECRET) {
       log.info('ProfitBridge VPS conectado');
       bridges.add(ws);
 
       ws.send(JSON.stringify({ type: 'connected', ts: Date.now() }));
 
-      // Keepalive para o bridge — Railway fecha conexoes inativas (v2)
+      // Keepalive para o bridge â Railway fecha conexoes inativas (v2)
       const keepalive = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.ping();
@@ -83,7 +83,7 @@ function createServer(bus, engines = {}) {
       }, 8000);
 
       ws.on('pong', () => {
-        // bridge respondeu ao ping — conexao viva
+        // bridge respondeu ao ping â conexao viva
       });
 
       ws.on('message', (raw) => {
@@ -117,7 +117,7 @@ function createServer(bus, engines = {}) {
       return;
     }
 
-    // ── Conexao do frontend ─────────────────────────────────────────
+    // ââ Conexao do frontend âââââââââââââââââââââââââââââââââââââââââ
     if (url === '/ws' || url === '/') {
       clients.add(ws);
       log.info('WS client conectado (' + clients.size + ')');
@@ -132,9 +132,11 @@ function createServer(bus, engines = {}) {
     ws.close(1008, 'Invalid path or secret');
   });
 
-  // ── Broadcasts para o frontend ────────────────────────────────────
+  // ââ Broadcasts para o frontend ââââââââââââââââââââââââââââââââââââ
   bus.on('normalized:tick',         d => broadcast('tick',           d));
   bus.on('book:update',             d => broadcast('book',           d));
+  bus.on('cedro:book:wdo',          d => broadcast('book',           d));
+  bus.on('cedro:book:dol',          d => broadcast('book_dol',       d));
   bus.on('book:update:dol',         d => broadcast('book_dol',       d));
   bus.on('feature:wdo',             d => broadcast('features',       d));
   bus.on('feature:dol',             d => broadcast('features_dol',   d));
