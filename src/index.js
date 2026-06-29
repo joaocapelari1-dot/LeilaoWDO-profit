@@ -39,7 +39,8 @@ if (isMainThread) {
       'ticker_state',
       'tiny_book',
       'daily',
-      'connection_state'
+      'connection_state',
+      'price_depth'   // livro de profundidade real via SubscribePriceDepth
     ];
 
     PROFIT_FORWARD.forEach(evt => {
@@ -207,10 +208,14 @@ if (isMainThread) {
   bus.on('raw:trade', d => normalizer.processTrade(d));
 
   bus.on('cedro:tick:wdo', d => normalizer.process(d));
-  bus.on('cedro:tick:dol', d => normalizer.process(d));
+  bus.on('cedro:tick:dol', (d) => {
+    normalizer.process(d);
+    // Emite feature:dol com last price para alimentar SuperDOM DOL
+    if (d?.last) bus.emit('feature:dol', { last: d.last, bid: d.bid || d.last, ask: d.ask || d.last, symbol: d.symbol || 'DOLN26', source: 'tick' });
+  });
 
-  bus.on('cedro:book:wdo', d => bus.emit('book:update', normalizer.processBook(d)));
-  bus.on('cedro:book:dol', d => bus.emit('book:update:dol', normalizer.processBook(d)));
+  bus.on('cedro:book:wdo', d => { const b = normalizer.processBook(d); if (b) bus.emit('book:update', b); });
+  bus.on('cedro:book:dol', d => { const b = normalizer.processBook(d); if (b) bus.emit('book:update:dol', b); });
 
   bus.on('risk:approved', d => execution.execute(d));
 
