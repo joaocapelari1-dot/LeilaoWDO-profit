@@ -132,7 +132,6 @@ class ProfitClient {
     const effectiveBid = bid || (ask ? ask - TICK : 0);
     const effectiveAsk = ask || (bid ? bid + TICK : 0);
     if(!effectiveBid || !effectiveAsk) return;
-    const TICK = 0.5;
     const LEVELS = 40;
     const bids = Array.from({length:LEVELS},(_,i)=>({
       price: Math.round((effectiveBid - i*TICK)*100)/100,
