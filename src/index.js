@@ -10,10 +10,10 @@ if (isMainThread) {
 
   const log = Logger('MAIN');
 
-  log.info('═══════════════════════════════════════');
+  log.info('âââââââââââââââââââââââââââââââââââââââ');
   log.info(' WDO Auction Production Engine v1.2');
-  log.info(` MODE: ${process.env.MOCK_MODE === 'false' ? '🔴 LIVE' : '🟡 MOCK'}`);
-  log.info('═══════════════════════════════════════');
+  log.info(` MODE: ${process.env.MOCK_MODE === 'false' ? 'ð´ LIVE' : 'ð¡ MOCK'}`);
+  log.info('âââââââââââââââââââââââââââââââââââââââ');
 
   const bus = new EventBus();
   global.__bus = bus;
@@ -207,15 +207,15 @@ if (isMainThread) {
   bus.on('raw:book', d => normalizer.processBook(d));
   bus.on('raw:trade', d => normalizer.processTrade(d));
 
-  bus.on('cedro:tick:wdo', d => normalizer.process(d));
-  bus.on('cedro:tick:dol', (d) => {
+  bus.on('market:tick:wdo', d => normalizer.process(d));
+  bus.on('market:tick:dol', (d) => {
     normalizer.process(d);
     // Emite feature:dol com last price para alimentar SuperDOM DOL
     if (d?.last) bus.emit('feature:dol', { last: d.last, bid: d.bid || d.last, ask: d.ask || d.last, symbol: d.symbol || 'DOLN26', source: 'tick' });
   });
 
-  bus.on('cedro:book:wdo', d => { const b = normalizer.processBook(d); if (b) bus.emit('book:update', b); });
-  bus.on('cedro:book:dol', d => { const b = normalizer.processBook(d); if (b) bus.emit('book:update:dol', b); });
+  bus.on('market:book:wdo', d => { const b = normalizer.processBook(d); if (b) bus.emit('book:update', b); });
+  bus.on('market:book:dol', d => { const b = normalizer.processBook(d); if (b) bus.emit('book:update:dol', b); });
 
   bus.on('risk:approved', d => execution.execute(d));
 
