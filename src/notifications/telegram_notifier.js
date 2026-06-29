@@ -1,100 +1,117 @@
+'use strict';
 /**
- * Telegram Notifier
- * Envia sinais do WDO Auction Engine via Telegram
+ * TelegramNotifier — envia alertas via Telegram Bot API
+ * Sem template literals, sem encoding especial
  */
 
 const https = require('https');
 const { Logger } = require('../utils/logger');
 
-const TOKEN   = process.env.TELEGRAM_TOKEN   || '';
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
-
 class TelegramNotifier {
   constructor(bus) {
-    this.bus          = bus;
-    this.log          = new Logger('TELEGRAM');
-    this.enabled      = !!(TOKEN && CHAT_ID);
-    this.lastSignalId = null;
-    this.sinaisHoje   = 0;
-    this.rejeicoes    = [];
-    this.maxConfianca = 0;
-    this.ultimaAnalise = null;
-    this.macroHoje    = null;
-    this.resumoEnviado = false;
+    this.bus   = bus;
+    this.log   = new Logger('TELEGRAM');
+    this.token = process.env.TELEGRAM_BOT_TOKEN || '';
+    this.chat  = process.env.TELEGRAM_CHAT_ID   || '';
 
-    if (!this.enabled) {
-      this.log.warn('Telegram nÃ£o configurado - adicione TELEGRAM_TOKEN e TELEGRAM_CHAT_ID no Railway');
+    if (!this.token || !this.chat) {
+      this.log.warn('Token ou ChatID nao configurado — notificacoes desativadas');
       return;
     }
 
-    this.log.info('OK Telegram Notifier ativo â grupo Wdo_auction');
-    this._listenEvents();
-    // Mensagem de startup removida - evita spam no Telegram
+    this._listen();
+    this.log.info('Telegram ativo — chat ' + this.chat);
   }
 
-  _listenEvents() {
-    // ââ NotificaÃ§Ãµes de ciclo do pregÃ£o ââââââââââââââââââââââ
-    // Claude liga Ã s 8h55 - notifica
-    this.bus.on('claude:iniciou', (d) => {
-      if (!this.enabled) return;
-      this._send(`ð§  *Claude ligou - 8h55*\nAnalisando dados do leilÃ£o...\nAguarde veredicto atÃ© 9h00:40`);
-    });
-
-    this.bus.on('macro:bom_dia', (d) => {
-      if (!this.enabled) return;
-      const snap = d.snapshot || {};
-      const spy  = snap.sp500?.price?.toFixed(0) || '-';
-      const vix  = snap.vix?.price?.toFixed(1)   || '-';
-      const usd  = snap.usdbrl?.price?.toFixed(3) || '-';
-      this._send(`ð¡ *MacroEngine ligou - 8h45*\nSPY: ${spy} | VIX: ${vix} | USD/BRL: ${usd}\nMacro Score: ${snap.macroScore ?? 0}/10`);
-    });
-
-    // auction:state_change removido - sistema opera por horÃ¡rio
-
-    this.bus.on('ai:analise', (d) => {
-      if (!this.enabled) return;
-      if (!['auction','pre_open'].includes(d.phase)) return;
-      const conf = Math.round((d.confianca || 0) * 100);
-      const verd = d.veredito || 'NAO_OPERAR';
-      this._send(`ð§  *Claude analisou*\nConfianÃ§a: ${conf}% | ${verd}\nMacro: ${d.macro_bias || 'NEUTRO'} | DOLÃWDO: ${d.confluencia || '-'}`);
-    });
-
-    // Monitora status da ProfitDLL
-    this.bus.on('cedro:connected', () => { this._cedroOk = true; this._cedroLastSYN = Date.now(); });
-    this.bus.on('cedro:syn',       () => { this._cedroLastSYN = Date.now(); });
-    this.bus.on('profit:ticker_state', () => { this._cedroOk = true; this._cedroLastSYN = Date.now(); });
-
-    this.bus.on('risk:approved', (sinal) => {
-      if (sinal.id === this.lastSignalId) return;
-      this.lastSignalId = sinal.id;
-      this._enviarSinal(sinal);
-    });
+  _listen() {
+    this.bus.on('risk:signal',      (s) => this._onSinal(s));
+    this.bus.on('order:opened',     (o) => this._onOrdem(o));
+    this.bus.on('order:closed',     (o) => this._onFechamento(o));
+    this.bus.on('position:limit_hit', () => this._onLimite());
+    this.bus.on('mdil:ghost_feed',  (d) => this._onGhost(d));
   }
 
-  _enviarSinal(sinal) {
-    const dir  = sinal.direction === 'buy' ? 'ð¢ COMPRA' : 'ð´ VENDA';
-    const emoji = sinal.direction === 'buy' ? 'ð' : 'ð';
-    const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'America/Sao_Paulo' });
-    const conf = Math.round((sinal.aiConfianca || 0) * 100);
-    const surplus = sinal.confluence?.surplus || 0;
+  _onSinal(sinal) {
+    const dir    = sinal.direction || '?';
+    const emoji  = dir === 'BUY' ? 'COMPRA' : 'VENDA';
+    const conf   = Math.round((sinal.score || 0) * 10);
+    const surplus = sinal.surplus || 0;
+    const entry  = (sinal.entry  || sinal.price || 0).toFixed(2);
+    const stop   = (sinal.stop   || sinal.stopPrice || 0).toFixed(2);
+    const alvo   = (sinal.target || sinal.targetPrice || 0).toFixed(2);
 
-    const entry = (sinal.entry || sinal.price)?.toFixed(2) || '-';
-    const stop  = sinal.stopPrice?.toFixed(2) || '-';
-    const alvo  = sinal.targetPrice?.toFixed(2) || '-';
-    const msg = emoji + ' *WDO AUCTION ENGINE*\n'
-      + '-------------------\n'
-      + '*SINAL: ' + dir + '*\n'
-      + '*Entrada:* ' + entry + '\n'
-      + '*Stop:* ' + stop + ' => R$' + (sinal.riskBrl || 60) + ' (' + (sinal.stopTicks || 6) + ' ticks)\n'
-      + '*Alvo:* ' + alvo + ' => R$' + (sinal.rewardBrl || 0) + ' (' + (sinal.alvo1Ticks || 0) + ' ticks)\n'
-      + '*RR:* ' + (sinal.rr || 0) + 'x | *Confianca:* ' + conf + '%\n'
-      + '-------------------\n'
-      + '*Surplus:* ' + (surplus > 0 ? '+' : '') + surplus + '\n'
-      + '*Iceberg:* ' + (sinal.icebergFavor ? 'Favor' : sinal.icebergContra ? 'Contra' : 'Neutro') + '\n'
-      + '*Macro:* ' + (sinal.macroAlinhado ? 'Favoravel' : 'Neutro') + '\n'
-      + '*DOLxWDO:* ' + (sinal.confluenciaDolWdo === 'confluente' ? 'Confluente' : 'Divergente') + '\n'
-      + '*Agressor:* ' + (sinal.agressor || '-') + '\n'
-      + '*Escora:* ' + (sinal.escoraReal || '-') + '\n'
-      + '*Macro Score:* ' + (sinal.macroScore || 0) + '/10\n'
-      + '-------------------\n'
-      + '_Railway LeilaoWDO Engine_';
+    const linhas = [
+      '[SINAL] ' + emoji + ' WDO',
+      'Entrada: ' + entry,
+      'Stop: '   + stop  + ' | R$' + (sinal.riskBrl || 60),
+      'Alvo: '   + alvo  + ' | R$' + (sinal.rewardBrl || 0),
+      'RR: '     + (sinal.rr || 1) + 'x | Confianca: ' + conf + '%',
+      'Surplus: ' + (surplus > 0 ? '+' : '') + surplus,
+      'Macro: '  + (sinal.macroAlinhado ? 'Favoravel' : 'Neutro'),
+    ];
+
+    const fatores = (sinal.factors || []).join(', ');
+    if (fatores) linhas.push('Fatores: ' + fatores);
+
+    this._send(linhas.join('\n'));
+  }
+
+  _onOrdem(ordem) {
+    const dir   = ordem.direction || '?';
+    const entry = (ordem.entry || 0).toFixed(2);
+    const mode  = ordem.mode || 'PAPER';
+    this._send('[ORDEM ABERTA] ' + mode + '\n' + dir + ' @ ' + entry);
+  }
+
+  _onFechamento(result) {
+    const pnl    = result.pnl || 0;
+    const reason = result.reason || '?';
+    const dia    = (result.dailyPnl || 0).toFixed(0);
+    const emoji  = pnl >= 0 ? 'LUCRO' : 'PREJUIZO';
+    this._send(
+      '[FECHAMENTO] ' + emoji + '\n' +
+      'Motivo: ' + reason + '\n' +
+      'P&L: R$' + pnl.toFixed(0) + '\n' +
+      'Dia: R$' + dia
+    );
+  }
+
+  _onLimite() {
+    this._send('[ALERTA] Limite de perda diaria atingido. Sem mais operacoes hoje.');
+  }
+
+  _onGhost(data) {
+    this._send('[ALERTA FEED] Ghost feed detectado em ' + (data.sym || '?') + ' (score=' + (data.score || 0) + ')');
+  }
+
+  _send(text) {
+    if (!this.token || !this.chat) return;
+
+    const body = JSON.stringify({
+      chat_id:    this.chat,
+      text:       text,
+      parse_mode: 'Markdown',
+    });
+
+    const opts = {
+      hostname: 'api.telegram.org',
+      path:     '/bot' + this.token + '/sendMessage',
+      method:   'POST',
+      headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+    };
+
+    const req = https.request(opts, (res) => {
+      if (res.statusCode !== 200) {
+        this.log.warn('Telegram HTTP ' + res.statusCode);
+      }
+    });
+
+    req.on('error', (e) => this.log.error('Telegram erro: ' + e.message));
+    req.write(body);
+    req.end();
+
+    this.log.info('Telegram enviado: ' + text.split('\n')[0]);
+  }
+}
+
+module.exports = { TelegramNotifier };
