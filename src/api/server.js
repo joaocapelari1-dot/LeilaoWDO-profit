@@ -13,6 +13,11 @@ function createServer(bus, engines = {}) {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
+  // Servir frontend buildado (Vite dist)
+  const path = require('path');
+  const frontendDist = path.join(__dirname, '../../frontend/dist');
+  app.use(express.static(frontendDist));
+
   // CORS simples e seguro
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
