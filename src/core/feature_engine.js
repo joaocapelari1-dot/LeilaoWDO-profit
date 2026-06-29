@@ -98,8 +98,8 @@ class FeatureEngine {
       dolSurplus,
       strength,
       label: aligned
-        ? \`DOL+WDO \${direction?.toUpperCase()} ✓\`
-        : \`DOL \${dolSide || '?'} vs WDO \${wdoSide || '?'} ✗\`,
+        ? ('DOL+WDO ' + (direction ? direction.toUpperCase() : '') + ' OK')
+        : ('DOL ' + (dolSide || '?') + ' vs WDO ' + (wdoSide || '?') + ' X'),
     };
   }
 
