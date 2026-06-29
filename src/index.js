@@ -5,7 +5,7 @@ const path = require('path');
 if (isMainThread) {
   // ================= MAIN THREAD =================
   const { createServer } = require('./api/server');
-  const Logger = require('./utils/logger'); // <- CORRETO (factory function)
+  const Logger = require('./utils/logger');
   const { EventBus } = require('./utils/event_bus');
 
   const log = Logger('MAIN');
@@ -139,7 +139,7 @@ if (isMainThread) {
   const { MarketMakerDetector } = require('./engines/market_maker_detector');
   const { MarketFeaturesEngine } = require('./engines/market_features_engine');
   const { TelegramNotifier } = require('./notifications/telegram_notifier');
-  const Logger = require('./utils/logger'); // <- FIX AQUI TB
+  const Logger = require('./utils/logger');
   const { EventBus } = require('./utils/event_bus');
 
   const log = Logger('WORKER');
