@@ -186,6 +186,24 @@ def _cb_offer(a, act, pos, side, qty, ag, oid, p, hp, hq, hd, ho, ha, d, ps, pb)
 
 def _cb_stub(*a): pass
 
+def _cb_trade_v2(trade, flags):
+    # Callback moderno via SetTradeCallbackV2 — documentacao Nelogica
+    # TradeType: 0=compra agressiva, 1=venda agressiva, 2=direto, 3=leilao
+    agg_map = {0: 'buyer', 1: 'seller', 2: 'direct', 3: 'auction'}
+    agg = agg_map.get(trade.TradeType, 'unknown')
+    enqueue({
+        'type':       'trade',
+        'ticker':     trade.Ticker,
+        'price':      trade.Price,
+        'volume':     trade.Volume,
+        'quantity':   trade.Quantity,
+        'buy_agent':  trade.BuyAgent,
+        'sell_agent': trade.SellAgent,
+        'aggressor':  agg,
+        'trade_type': trade.TradeType,
+        'timestamp':  datetime.now().isoformat(),
+    })
+
 def safe_json(obj):
     return json.dumps(obj, default=lambda x: None if isinstance(x, float) and not math.isfinite(x) else x)
 
