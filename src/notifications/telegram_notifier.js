@@ -23,40 +23,40 @@ class TelegramNotifier {
     this.resumoEnviado = false;
 
     if (!this.enabled) {
-      this.log.warn('Telegram não configurado — adicione TELEGRAM_TOKEN e TELEGRAM_CHAT_ID no Railway');
+      this.log.warn('Telegram nÃ£o configurado â adicione TELEGRAM_TOKEN e TELEGRAM_CHAT_ID no Railway');
       return;
     }
 
-    this.log.info('✅ Telegram Notifier ativo → grupo Wdo_auction');
+    this.log.info('â Telegram Notifier ativo â grupo Wdo_auction');
     this._listenEvents();
-    // Mensagem de startup removida — evita spam no Telegram
+    // Mensagem de startup removida â evita spam no Telegram
   }
 
   _listenEvents() {
-    // ── Notificações de ciclo do pregão ──────────────────────
-    // Claude liga às 8h55 — notifica
+    // ââ NotificaÃ§Ãµes de ciclo do pregÃ£o ââââââââââââââââââââââ
+    // Claude liga Ã s 8h55 â notifica
     this.bus.on('claude:iniciou', (d) => {
       if (!this.enabled) return;
-      this._send(`🧠 *Claude ligou — 8h55*\nAnalisando dados do leilão...\nAguarde veredicto até 9h00:40`);
+      this._send(`ð§  *Claude ligou â 8h55*\nAnalisando dados do leilÃ£o...\nAguarde veredicto atÃ© 9h00:40`);
     });
 
     this.bus.on('macro:bom_dia', (d) => {
       if (!this.enabled) return;
       const snap = d.snapshot || {};
-      const spy  = snap.sp500?.price?.toFixed(0) || '—';
-      const vix  = snap.vix?.price?.toFixed(1)   || '—';
-      const usd  = snap.usdbrl?.price?.toFixed(3) || '—';
-      this._send(`🟡 *MacroEngine ligou — 8h45*\nSPY: ${spy} | VIX: ${vix} | USD/BRL: ${usd}\nMacro Score: ${snap.macroScore ?? 0}/10`);
+      const spy  = snap.sp500?.price?.toFixed(0) || 'â';
+      const vix  = snap.vix?.price?.toFixed(1)   || 'â';
+      const usd  = snap.usdbrl?.price?.toFixed(3) || 'â';
+      this._send(`ð¡ *MacroEngine ligou â 8h45*\nSPY: ${spy} | VIX: ${vix} | USD/BRL: ${usd}\nMacro Score: ${snap.macroScore ?? 0}/10`);
     });
 
-    // auction:state_change removido — sistema opera por horário
+    // auction:state_change removido â sistema opera por horÃ¡rio
 
     this.bus.on('ai:analise', (d) => {
       if (!this.enabled) return;
       if (!['auction','pre_open'].includes(d.phase)) return;
       const conf = Math.round((d.confianca || 0) * 100);
       const verd = d.veredito || 'NAO_OPERAR';
-      this._send(`🧠 *Claude analisou*\nConfiança: ${conf}% | ${verd}\nMacro: ${d.macro_bias || 'NEUTRO'} | DOL×WDO: ${d.confluencia || '—'}`);
+      this._send(`ð§  *Claude analisou*\nConfianÃ§a: ${conf}% | ${verd}\nMacro: ${d.macro_bias || 'NEUTRO'} | DOLÃWDO: ${d.confluencia || 'â'}`);
     });
 
     // Monitora status da ProfitDLL
@@ -72,26 +72,26 @@ class TelegramNotifier {
   }
 
   _enviarSinal(sinal) {
-    const dir  = sinal.direction === 'buy' ? '🟢 COMPRA' : '🔴 VENDA';
-    const emoji = sinal.direction === 'buy' ? '📈' : '📉';
+    const dir  = sinal.direction === 'buy' ? 'ð¢ COMPRA' : 'ð´ VENDA';
+    const emoji = sinal.direction === 'buy' ? 'ð' : 'ð';
     const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'America/Sao_Paulo' });
     const conf = Math.round((sinal.aiConfianca || 0) * 100);
     const surplus = sinal.confluence?.surplus || 0;
 
     const msg = `${emoji} *WDO AUCTION ENGINE*
-━━━━━━━━━━━━━━━━━━━
+âââââââââââââââââââ
 *SINAL: ${dir}*
 *Entrada:* \`${(sinal.entry || sinal.price)?.toFixed(2)}\`
-*Stop:* \`${sinal.stopPrice?.toFixed(2)}\` → R$${sinal.riskBrl || 60} (${sinal.stopTicks || 6} ticks)
-*Alvo:* \`${sinal.targetPrice?.toFixed(2)}\` → R$${sinal.rewardBrl || 0} (${sinal.alvo1Ticks || 0} ticks)
-*RR:* ${sinal.rr || 0}x | *Confiança:* ${conf}%
-━━━━━━━━━━━━━━━━━━━
+*Stop:* \`${sinal.stopPrice?.toFixed(2)}\` â R$${sinal.riskBrl || 60} (${sinal.stopTicks || 6} ticks)
+*Alvo:* \`${sinal.targetPrice?.toFixed(2)}\` â R$${sinal.rewardBrl || 0} (${sinal.alvo1Ticks || 0} ticks)
+*RR:* ${sinal.rr || 0}x | *ConfianÃ§a:* ${conf}%
+âââââââââââââââââââ
 *Surplus:* ${surplus > 0 ? '+' : ''}${surplus}
-*Iceberg:* ${sinal.icebergFavor ? '✅ Favor' : sinal.icebergContra ? '❌ Contra' : '— Neutro'}
-*Macro:* ${sinal.macroAlinhado ? '✅ Favorável' : '⚠️ Neutro'}
-*DOL×WDO:* ${sinal.confluenciaDolWdo === 'confluente' ? '✅ Confluente' : '❌ Divergente'}
-━━━━━━━━━━━━━━━━━━━
-⏰ ${hora} BRT | 📄 PAPER`;
+*Iceberg:* ${sinal.icebergFavor ? 'â Favor' : sinal.icebergContra ? 'â Contra' : 'â Neutro'}
+*Macro:* ${sinal.macroAlinhado ? 'â FavorÃ¡vel' : 'â ï¸ Neutro'}
+*DOLÃWDO:* ${sinal.confluenciaDolWdo === 'confluente' ? 'â Confluente' : 'â Divergente'}
+âââââââââââââââââââ
+â° ${hora} BRT | ð PAPER`;
 
     this._send(msg);
   }
@@ -111,9 +111,9 @@ class TelegramNotifier {
         max_tokens: 10,
         messages: [{ role: 'user', content: 'OK' }]
       });
-      resultados.push(`✅ Claude API: ${Date.now()-t0}ms`);
+      resultados.push(`â Claude API: ${Date.now()-t0}ms`);
     } catch(e) {
-      resultados.push(`❌ Claude API: ${e.message?.slice(0,40)}`);
+      resultados.push(`â Claude API: ${e.message?.slice(0,40)}`);
     }
 
     // 2. Testar Twelve Data
@@ -126,38 +126,38 @@ class TelegramNotifier {
           r.on('end',()=>{
             try {
               const j = JSON.parse(d);
-              resolve(j.price ? `✅ Twelve Data: ${Date.now()-t0}ms (SPY=${parseFloat(j.price).toFixed(0)})` : `⚠️ Twelve Data: sem dados`);
-            } catch { resolve('❌ Twelve Data: parse error'); }
+              resolve(j.price ? `â Twelve Data: ${Date.now()-t0}ms (SPY=${parseFloat(j.price).toFixed(0)})` : `â ï¸ Twelve Data: sem dados`);
+            } catch { resolve('â Twelve Data: parse error'); }
           });
         });
-        req.on('error', () => resolve('❌ Twelve Data: connection error'));
-        req.on('timeout', () => resolve('❌ Twelve Data: timeout'));
+        req.on('error', () => resolve('â Twelve Data: connection error'));
+        req.on('timeout', () => resolve('â Twelve Data: timeout'));
       });
       resultados.push(ok);
     } catch(e) {
-      resultados.push(`❌ Twelve Data: ${e.message?.slice(0,40)}`);
+      resultados.push(`â Twelve Data: ${e.message?.slice(0,40)}`);
     }
 
-    // 3. Testar Cedro — verifica SYN recente (últimos 90s)
+    // 3. Testar Cedro â verifica SYN recente (Ãºltimos 90s)
     const synAge = this._cedroLastSYN ? Math.round((Date.now() - this._cedroLastSYN)/1000) : null;
     if (synAge !== null && synAge <= 90) {
-      resultados.push(`✅ ProfitDLL: viva (tick ${synAge}s atrás)`);
+      resultados.push(`â ProfitDLL: viva (tick ${synAge}s atrÃ¡s)`);
     } else if (this._cedroOk) {
-      resultados.push(`⚠️ ProfitDLL: conectou mas sem tick há ${synAge ?? '?'}s`);
+      resultados.push(`â ï¸ ProfitDLL: conectou mas sem tick hÃ¡ ${synAge ?? '?'}s`);
     } else {
-      resultados.push('❌ ProfitDLL: não conectada');
+      resultados.push('â ProfitDLL: nÃ£o conectada');
     }
 
     const total = Date.now() - start;
-    const allOk = resultados.every(r => r.startsWith('✅'));
-    const emoji = allOk ? '🟢' : '🟡';
+    const allOk = resultados.every(r => r.startsWith('â'));
+    const emoji = allOk ? 'ð¢' : 'ð¡';
 
-    this._send(`${emoji} *Health Check 8h40 — ${total}ms*\n${resultados.join('\n')}\n\n${allOk ? 'Sistema PRONTO para o leilão ✅' : 'Verificar itens ⚠️'}`);
+    this._send(`${emoji} *Health Check 8h40 â ${total}ms*\n${resultados.join('\n')}\n\n${allOk ? 'Sistema PRONTO para o leilÃ£o â' : 'Verificar itens â ï¸'}`);
   }
 
   testar() {
     const hora = new Date().toLocaleTimeString('pt-BR', { timeZone:'America/Sao_Paulo' });
-    this._send(`🤖 *WDO Auction Engine Online*\n✅ Sistema iniciado e conectado à ProfitDLL\n⏰ ${hora} BRT`);
+    this._send(`ð¤ *WDO Auction Engine Online*\nâ Sistema iniciado e conectado Ã  ProfitDLL\nâ° ${hora} BRT`);
   }
 
   _send(text) {
@@ -174,7 +174,7 @@ class TelegramNotifier {
       res.on('data', c => d += c);
       res.on('end', () => {
         const json = JSON.parse(d);
-        if (json.ok) this.log.info('✅ Telegram enviado');
+        if (json.ok) this.log.info('â Telegram enviado');
         else this.log.warn('Telegram erro: ' + json.description);
       });
     });
