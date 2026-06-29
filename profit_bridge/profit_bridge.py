@@ -50,11 +50,17 @@ def enqueue(obj):
         pass
 
 def safe_json(obj):
-    def default(x):
-        if isinstance(x, float) and not math.isfinite(x):
-            return None
-        return str(x)
-    return json.dumps(obj, default=default)
+    """Serializa para JSON tratando -inf, inf e NaN como null."""
+    def sanitize(o):
+        if isinstance(o, dict):
+            return {k: sanitize(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [sanitize(v) for v in o]
+        if isinstance(o, float):
+            if not math.isfinite(o):
+                return None
+        return o
+    return json.dumps(sanitize(obj))
 
 # ── Estruturas ctypes (documentacao Nelogica) ────────────────────
 class TAssetIDRec(ctypes.Structure):
