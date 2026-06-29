@@ -127,21 +127,25 @@ class ProfitClient {
     const ref = isWDO ? this.lastWDO : this.lastDOL;
     const bid = ref.bid || 0;
     const ask = ref.ask || 0;
-    if(!bid || !ask || bid >= ask) return;
+    // Estimar o lado faltante com 0.5 pts de spread (WDO tick size)
+    const TICK = 0.5;
+    const effectiveBid = bid || (ask ? ask - TICK : 0);
+    const effectiveAsk = ask || (bid ? bid + TICK : 0);
+    if(!effectiveBid || !effectiveAsk) return;
     const TICK = 0.5;
     const LEVELS = 40;
     const bids = Array.from({length:LEVELS},(_,i)=>({
-      price: Math.round((bid - i*TICK)*100)/100,
+      price: Math.round((effectiveBid - i*TICK)*100)/100,
       qty: Math.max(1, Math.round(50 * Math.exp(-i * 0.15)))
     }));
     const asks = Array.from({length:LEVELS},(_,i)=>({
-      price: Math.round((ask + i*TICK)*100)/100,
+      price: Math.round((effectiveAsk + i*TICK)*100)/100,
       qty: Math.max(1, Math.round(50 * Math.exp(-i * 0.15)))
     }));
     const totalBid = bids.reduce((s,b)=>s+b.qty,0);
     const totalAsk = asks.reduce((s,a)=>s+a.qty,0);
     const book = {symbol:sym,bids,asks,bid_vol_total:totalBid,ask_vol_total:totalAsk,
-      imbalance:0,best_bid:bid,best_ask:ask,timestamp:Date.now(),source:'tiny_book'};
+      imbalance:0,best_bid:effectiveBid,best_ask:effectiveAsk,timestamp:Date.now(),source:'tiny_book'};
     if(isWDO) this.bus.emit('cedro:book:wdo', book);
     else this.bus.emit('cedro:book:dol', book);
   }
