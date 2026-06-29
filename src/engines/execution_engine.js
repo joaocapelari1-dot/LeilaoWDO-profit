@@ -22,15 +22,15 @@ class ExecutionEngine {
     this.positions = [];
     this.trades    = [];
 
-    this.log.info(`Motor de execução: ${this.paperMode ? '📄 PAPER' : '🔴 LIVE'} mode`);
+    this.log.info(`Motor de execuÃ§Ã£o: ${this.paperMode ? 'ð PAPER' : 'ð´ LIVE'} mode`);
 
-    // Atualiza lastPrice das posições abertas a cada tick
+    // Atualiza lastPrice das posiÃ§Ãµes abertas a cada tick
     bus.on('normalized:tick', (tick) => {
       if (!tick.last) return;
       this.positions.filter(p => p.status === 'open').forEach(p => { p.lastPrice = tick.last; });
     });
     if (!this.paperMode) {
-      this.log.warn('⚠️  LIVE EXECUTION MODE — real orders will be sent');
+      this.log.warn('â ï¸  LIVE EXECUTION MODE â real orders will be sent');
     }
   }
 
@@ -41,7 +41,7 @@ class ExecutionEngine {
     return this._liveExecute(order);
   }
 
-  // ── Paper Execution ─────────────────────────────────────────
+  // ââ Paper Execution âââââââââââââââââââââââââââââââââââââââââ
   _paperExecute(order) {
     // Simulate slippage: 1 tick adverse
     const slippage    = TICK_SIZE;
@@ -65,7 +65,7 @@ class ExecutionEngine {
     };
 
     this.positions.push(position);
-    this.log.info(`📄 📄 EXECUÇÃO PAPER: ${order.direction.toUpperCase()} ${order.contracts}x @ ${fillPrice} | Stop: ${order.stopPrice} | Target: ${order.targetPrice}`);
+    this.log.info(`ð ð EXECUÃÃO PAPER: ${order.direction.toUpperCase()} ${order.contracts}x @ ${fillPrice} | Stop: ${order.stopPrice} | Target: ${order.targetPrice}`);
 
     this.bus.emit('execution:fill', {
       ...position,
@@ -76,14 +76,14 @@ class ExecutionEngine {
     // Broadcast to frontend
     this.bus.emit('ws:broadcast', { type: 'execution_fill', data: position });
 
-    // Monitorar stop/alvo com preço real da Cedro
+    // Monitorar stop/alvo com preÃ§o real da Cedro
     this._monitorPosition(position);
 
     return position;
   }
 
   _monitorPosition(position) {
-    // Monitora preço real da Cedro via normalized:tick
+    // Monitora preÃ§o real da Cedro via normalized:tick
     const handler = (tick) => {
       const pos = this.positions.find(p => p.id === position.id && p.status === 'open');
       if (!pos) { this.bus.off('normalized:tick', handler); return; }
@@ -115,12 +115,12 @@ class ExecutionEngine {
 
     this.bus.on('normalized:tick', handler);
 
-    // Encerramento forçado às 9h10 BRT se ainda aberta
+    // Encerramento forÃ§ado Ã s 9h10 BRT se ainda aberta
     const agora   = new Date();
     const fechamento = new Date();
     fechamento.setHours(9, 10, 0, 0);
     let msAte910 = fechamento - agora;
-    if (msAte910 <= 0) msAte910 = 5 * 60 * 1000; // fallback 5min se já passou
+    if (msAte910 <= 0) msAte910 = 5 * 60 * 1000; // fallback 5min se jÃ¡ passou
 
     setTimeout(() => {
       const pos = this.positions.find(p => p.id === position.id && p.status === 'open');
@@ -130,7 +130,7 @@ class ExecutionEngine {
       this._closePosition(pos.id, price, 'encerramento_9h10');
     }, msAte910);
 
-    this.log.info(`👁 Monitorando posição ${position.id} | Stop: ${position.stopPrice} | Alvo: ${position.targetPrice} | Fecha: 9h10`);
+    this.log.info(`ð Monitorando posiÃ§Ã£o ${position.id} | Stop: ${position.stopPrice} | Alvo: ${position.targetPrice} | Fecha: 9h10`);
   }
 
   _closePosition(posId, exitPrice, reason) {
@@ -152,15 +152,15 @@ class ExecutionEngine {
     this.balance += pos.pnl;
     this.trades.push({ ...pos });
 
-    this.log.info(`📄 POSIÇÃO FECHADA [${reason}]: PnL R$${pos.pnl.toFixed(2)} | Saldo: R$${this.balance.toFixed(2)}`);
+    this.log.info(`ð POSIÃÃO FECHADA [${reason}]: PnL R$${pos.pnl.toFixed(2)} | Saldo: R$${this.balance.toFixed(2)}`);
 
     this.bus.emit('execution:close', { contracts: pos.contracts, pnl: pos.pnl, reason });
     this.bus.emit('ws:broadcast', { type: 'execution_close', data: pos });
   }
 
-  // ── Live Execution ──────────────────────────────────────────
+  // ââ Live Execution ââââââââââââââââââââââââââââââââââââââââââ
   _liveExecute(order) {
-    this.log.warn('🔴 LIVE EXECUTION — NOT IMPLEMENTED. Integrate broker API here.');
+    this.log.warn('ð´ LIVE EXECUTION â NOT IMPLEMENTED. Integrate broker API here.');
     // TODO: Integrate with XP Investimentos / Rico / Necton API
     // This must never be called in paper mode.
     this.bus.emit('execution:error', { reason: 'Live execution not implemented', order });
