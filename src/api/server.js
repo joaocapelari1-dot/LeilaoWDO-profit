@@ -40,6 +40,53 @@ function createServer(bus, engines = {}) {
   });
 
   // SAFE STATUS
+  // ── Rotas adaptive log ──────────────────────────────────────
+  // O AdaptiveLogEngine guarda historico em memoria
+  // Estas rotas evitam 404 no frontend
+  app.get('/api/adaptive/historico', (req, res) => {
+    try {
+      const engine = engines.adaptiveLog;
+      if (engine && engine.getHistorico) {
+        res.json(engine.getHistorico());
+      } else {
+        res.json([]);
+      }
+    } catch { res.json([]); }
+  });
+
+  app.get('/api/adaptive/journal', (req, res) => {
+    try {
+      const engine = engines.adaptiveLog;
+      if (engine && engine.getJournal) {
+        res.json(engine.getJournal());
+      } else {
+        res.json([]);
+      }
+    } catch { res.json([]); }
+  });
+
+  app.get('/api/adaptive/balanco/mensal', (req, res) => {
+    try {
+      const engine = engines.adaptiveLog;
+      if (engine && engine.getBalancoMensal) {
+        res.json(engine.getBalancoMensal());
+      } else {
+        res.json({ pnl: 0, trades: 0, acertos: 0, erros: 0 });
+      }
+    } catch { res.json({ pnl: 0, trades: 0, acertos: 0, erros: 0 }); }
+  });
+
+  app.get('/api/adaptive/balanco/anual', (req, res) => {
+    try {
+      const engine = engines.adaptiveLog;
+      if (engine && engine.getBalancoAnual) {
+        res.json(engine.getBalancoAnual());
+      } else {
+        res.json({ pnl: 0, trades: 0, meses: [] });
+      }
+    } catch { res.json({ pnl: 0, trades: 0, meses: [] }); }
+  });
+
   app.get('/api/status', (req, res) => {
     res.json({
       risk: engines?.risk?.getStatus?.() || {},
