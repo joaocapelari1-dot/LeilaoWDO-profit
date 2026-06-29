@@ -1,21 +1,21 @@
 /**
  * MarketContextEngine
  * 
- * Centraliza contexto de mercado para enriquecer a análise do Claude:
+ * Centraliza contexto de mercado para enriquecer a analise do Claude:
  * 
  * 1. GAP OVERNIGHT
  *    - Busca fechamento de ontem do WDO via Yahoo Finance (USDBRL=X proxy)
- *    - Calcula gap % em relação ao preço atual do leilão
- *    - Gap > 0.5% = mercado em gap — muda dinâmica do leilão
+ *    - Calcula gap % em relacao ao preco atual do leilao
+ *    - Gap > 0.5% = mercado em gap â muda dinÃ¢mica do leilao
  * 
- * 2. CALENDÁRIO ECONÔMICO
+ * 2. CALENDÃRIO ECONÃMICO
  *    - Busca eventos de alto impacto do dia via API gratuita
- *    - Se evento nas próximas 2h → alerta para Claude penalizar confiança
+ *    - Se evento nas proximas 2h â alerta para Claude penalizar confianca
  *    - Fontes: tradingeconomics (fallback: lista hardcoded mensal)
  * 
  * 3. FORMADORES DE MERCADO (placeholder)
- *    - Estrutura pronta para receber dados da Cedro
- *    - Identifica concentração de volume nos níveis do book
+ *    - Estrutura pronta para receber dados do ProfitBridge
+ *    - Identifica concentracao de volume nos nÃ­veis do book
  *    - Ativa automaticamente quando MOCK_MODE=false
  */
 
@@ -23,9 +23,9 @@ const https   = require('https');
 const { Logger } = require('../utils/logger');
 
 const REFRESH_GAP_MS      = 60 * 60 * 1000;       // atualiza gap a cada 1h
-const REFRESH_CALENDAR_MS = 30 * 60 * 1000;       // atualiza calendário a cada 30min
+const REFRESH_CALENDAR_MS = 30 * 60 * 1000;       // atualiza calendario a cada 30min
 const GAP_THRESHOLD_PCT   = 0.5;               // gap relevante acima de 0.5%
-const EVENT_WINDOW_MIN    = 120;               // eventos nas próximas 2h
+const EVENT_WINDOW_MIN    = 120;               // eventos nas proximas 2h
 
 class MarketContextEngine {
   constructor(bus) {
@@ -34,12 +34,12 @@ class MarketContextEngine {
 
     this.gapData       = null;
     this.calendarData  = null;
-    this.marketMakers  = null;   // placeholder Cedro
+    this.marketMakers  = null;   // placeholder
     this.lastPrice     = null;
 
     this.timers = [];
 
-    // Escuta preço atual do WDO
+    // Escuta preco atual do WDO
     bus.on('feature:wdo', (f) => {
       if (f.last) this.lastPrice = f.last;
     });
@@ -52,7 +52,7 @@ class MarketContextEngine {
     await this._fetchGap();
     await this._fetchCalendar();
 
-    // Refresh periódico
+    // Refresh periodico
     this.timers.push(setInterval(() => this._fetchGap(),      REFRESH_GAP_MS));
     this.timers.push(setInterval(() => this._fetchCalendar(), REFRESH_CALENDAR_MS));
   }
@@ -62,7 +62,7 @@ class MarketContextEngine {
     this.log.info('Market Context Engine parado');
   }
 
-  // ── 1. GAP OVERNIGHT ─────────────────────────────────────────
+  // ââ 1. GAP OVERNIGHT âââââââââââââââââââââââââââââââââââââââââ
   async _fetchGap() {
     try {
       const snap = this._macroSnap;
@@ -88,7 +88,7 @@ class MarketContextEngine {
       };
 
       if (this.gapData.gapRelevante) {
-        this.log.info(`📊 Gap overnight: ${gapPct.toFixed(3)}% (${this.gapData.classificacao})`);
+        this.log.info(`ð Gap overnight: ${gapPct.toFixed(3)}% (${this.gapData.classificacao})`);
       }
 
       this.bus.emit('context:gap', this.gapData);
@@ -97,17 +97,17 @@ class MarketContextEngine {
     }
   }
 
-  // ── 2. CALENDÁRIO ECONÔMICO ───────────────────────────────────
+  // ââ 2. CALENDÃRIO ECONÃMICO âââââââââââââââââââââââââââââââââââ
   async _fetchCalendar() {
     try {
-      // Tenta buscar via API pública
+      // Tenta buscar via API pÃºblica
       const events = await this._fetchEconomicEvents();
       
       const now       = new Date();
       const nowMs     = now.getTime();
       const windowMs  = EVENT_WINDOW_MIN * 60 * 1000;
 
-      // Filtra eventos das próximas 2h e de alto impacto
+      // Filtra eventos das proximas 2h e de alto impacto
       const proximos = events.filter(e => {
         const diff = e.timestamp - nowMs;
         return diff >= 0 && diff <= windowMs && e.impacto === 'alto';
@@ -124,15 +124,15 @@ class MarketContextEngine {
         const warnKey = proximos.map(e=>e.nome).join(',');
         if (warnKey !== this._lastWarnKey) {
           this._lastWarnKey = warnKey;
-          this.log.warn(`⚠️ ${proximos.length} evento(s) de alto impacto nas próximas 2h!`);
-          proximos.forEach(e => this.log.warn(`   → ${e.nome} às ${e.hora} (${e.pais})`));
+          this.log.warn(`â ï¸ ${proximos.length} evento(s) de alto impacto nas proximas 2h!`);
+          proximos.forEach(e => this.log.warn(`   â ${e.nome} Ã s ${e.hora} (${e.pais})`));
         }
       }
 
       this.bus.emit('context:calendar', this.calendarData);
     } catch (e) {
-      this.log.error('Erro ao buscar calendário:', e.message);
-      // Fallback: usa lista de eventos conhecidos do mês
+      this.log.error('Erro ao buscar calendario:', e.message);
+      // Fallback: usa lista de eventos conhecidos do mes
       this._useCalendarFallback();
     }
   }
@@ -194,7 +194,7 @@ class MarketContextEngine {
   }
 
   _getKnownEvents() {
-    // Eventos recorrentes de alto impacto EUA — horários em BRT (UTC-3)
+    // Eventos recorrentes de alto impacto EUA â horarios em BRT (UTC-3)
     const hoje = new Date();
     const ano  = hoje.getFullYear();
     const mes  = hoje.getMonth();
@@ -203,26 +203,26 @@ class MarketContextEngine {
     const mkTime = (h, m) => new Date(ano, mes, dia, h, m, 0).getTime();
 
     return [
-      // Payroll — primeira sexta do mês, 09:30 ET = 10:30 BRT
+      // Payroll â primeira sexta do mes, 09:30 ET = 10:30 BRT
       { nome: 'Non-Farm Payroll',      pais: 'US', hora: '10:30', timestamp: mkTime(10, 30), impacto: 'alto' },
-      // CPI — geralmente segunda semana, 09:30 ET
+      // CPI â geralmente segunda semana, 09:30 ET
       { nome: 'CPI EUA',               pais: 'US', hora: '10:30', timestamp: mkTime(10, 30), impacto: 'alto' },
-      // FOMC — reuniões marcadas (placeholder)
+      // FOMC â reuniÃµes marcadas (placeholder)
       { nome: 'FOMC Minutes',          pais: 'US', hora: '15:00', timestamp: mkTime(15,  0), impacto: 'alto' },
-      // Decisão COPOM — geralmente quarta ou quinta
-      { nome: 'Decisão COPOM',         pais: 'BR', hora: '18:30', timestamp: mkTime(18, 30), impacto: 'alto' },
+      // Decisao COPOM â geralmente quarta ou quinta
+      { nome: 'Decisao COPOM',         pais: 'BR', hora: '18:30', timestamp: mkTime(18, 30), impacto: 'alto' },
       // PIB EUA
       { nome: 'PIB EUA (preliminar)',  pais: 'US', hora: '10:30', timestamp: mkTime(10, 30), impacto: 'alto' },
     ].filter(e => {
-      // Só retorna se for hoje (heurística simples)
-      return true; // API real filtra por data — aqui retorna lista como referência
+      // So retorna se for hoje (heurÃ­stica simples)
+      return true; // API real filtra por data â aqui retorna lista como referencia
     });
   }
 
-  // ── 3. FORMADORES DE MERCADO (Placeholder Cedro) ─────────────
+  // ââ 3. FORMADORES DE MERCADO (Placeholder Cedro) âââââââââââââ
   updateMarketMakers(bookL2Data) {
-    // Chamado pelo LiveCedroClient quando MOCK_MODE=false
-    // Identifica concentração anormal de volume em um único nível
+    // Dados do ProfitBridge
+    // Identifica concentracao anormal de volume em um Ãºnico nÃ­vel
     if (!bookL2Data) return;
 
     const { bids, asks } = bookL2Data;
@@ -230,7 +230,7 @@ class MarketContextEngine {
     const totalVol  = allLevels.reduce((s, l) => s + l.qty, 0);
     const avgVol    = totalVol / (allLevels.length || 1);
 
-    // Nível com > 3x a média = possível formador de mercado
+    // NÃ­vel com > 3x a media = possÃ­vel formador de mercado
     const mmLevels = allLevels.filter(l => l.qty > avgVol * 3).map(l => ({
       price:     l.price,
       qty:       l.qty,
@@ -244,7 +244,7 @@ class MarketContextEngine {
       ladoDominante: mmLevels.filter(l => l.side === 'bid').length >
                      mmLevels.filter(l => l.side === 'ask').length ? 'compra' : 'venda',
       updatedAt: Date.now(),
-      fonte: process.env.MOCK_MODE !== 'false' ? 'placeholder' : 'cedro',
+      fonte: process.env.MOCK_MODE !== 'false' ? 'placeholder' : 'profit_bridge',
     };
 
     if (mmLevels.length > 0) {
@@ -252,7 +252,7 @@ class MarketContextEngine {
     }
   }
 
-  // ── Yahoo Finance helper ──────────────────────────────────────
+  // ââ Yahoo Finance helper ââââââââââââââââââââââââââââââââââââââ
   _yahooQuote(symbols) {
     return new Promise((resolve) => {
       const options = {
@@ -280,7 +280,7 @@ class MarketContextEngine {
     });
   }
 
-  // ── Snapshot completo para o Claude ──────────────────────────
+  // ââ Snapshot completo para o Claude ââââââââââââââââââââââââââ
   getSnapshot() {
     return {
       gap:          this.gapData,
