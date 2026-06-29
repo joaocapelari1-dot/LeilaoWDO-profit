@@ -344,6 +344,7 @@ async def railway_loop():
             ) as ws:
                 log.info("CONECTADO ao Railway via /bridge!")
                 backoff = 5
+                last_hb = asyncio.get_event_loop().time()
 
                 while True:
                     events = []
