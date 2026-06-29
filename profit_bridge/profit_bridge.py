@@ -369,10 +369,36 @@ async def railway_loop():
                         payload = events if len(events) > 1 else events[0]
                         await ws.send(safe_json(payload))
 
+                    # Gravar bridge.status para o watchdog
+                    now_t = asyncio.get_event_loop().time()
+                    if now_t - last_hb >= 8:
+                        last_hb = now_t
+                        await ws.send(json.dumps({"type": "heartbeat", "ts": int(now_t)}))
+                        # Atualizar status file para o watchdog
+                        try:
+                            status = {
+                                "last_heartbeat": datetime.now().isoformat(),
+                                "dll_connected": True,
+                                "railway_connected": True,
+                            }
+                            Path(r"C:\ProfitBridge\bridge.status").write_text(json.dumps(status))
+                        except Exception:
+                            pass
+
                     await asyncio.sleep(0.05)
 
         except Exception as e:
             log.error(f"Desconectado: {e} — retry em {backoff}s")
+            # Marcar desconectado no status
+            try:
+                status = {
+                    "last_heartbeat": datetime.now().isoformat(),
+                    "dll_connected": True,
+                    "railway_connected": False,
+                }
+                Path(r"C:\ProfitBridge\bridge.status").write_text(json.dumps(status))
+            except Exception:
+                pass
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 120)
 
