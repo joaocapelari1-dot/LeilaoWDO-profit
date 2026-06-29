@@ -17,7 +17,7 @@
  * 
  * Macro alinhamento:
  *   DXY + USD/BRL (proxy DI) + Treasury 10y
- *   â ï¸  DI real via Cedro quando disponÃ­vel
+ *   DI real via B3/ProfitBridge quando disponivel
  */
 const { Logger } = require('../utils/logger');
 
@@ -262,7 +262,7 @@ class RiskEngine {
       if (dxyChg > 0.05)  { score -= 2; factors.push('DXYâ â'); }
     }
 
-    // USD/BRL (proxy DI â â ï¸ substituir por DI real quando Cedro disponÃ­vel)
+    // USD/BRL (proxy DI — substituir por DI real quando disponivel)
     const brlChg = macro.usdbrl?.changePct || 0;
     if (direction === 'buy') {
       if (brlChg > 0.05)  { score += 2; factors.push('USDBRLâ â'); }
