@@ -14,7 +14,7 @@ class DataNormalizer {
   process(raw) {
     try {
       const sym = raw.symbol || 'WDON26'; // fallback para contrato fixo
-      // Cedro manda ticks parciais â merge com Ãºltimo tick vÃ¡lido
+      // ProfitBridge manda ticks parciais — merge com ultimo tick valido
       const prev = this.lastTicks[sym] || {};
       const merged = {
         ...prev,
