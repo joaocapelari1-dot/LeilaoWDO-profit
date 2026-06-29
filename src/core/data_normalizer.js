@@ -1,5 +1,5 @@
 /**
- * DataNormalizer — suporta WDO e DOL
+ * DataNormalizer â suporta WDO e DOL
  */
 const { Logger } = require('../utils/logger');
 
@@ -7,14 +7,14 @@ class DataNormalizer {
   constructor(bus) {
     this.bus       = bus;
     this.log       = new Logger('NORMALIZER');
-    this.lastTicks = {};   // por símbolo
+    this.lastTicks = {};   // por sÃ­mbolo
     this.tickCount  = 0;
   }
 
   process(raw) {
     try {
       const sym = raw.symbol || 'WDON26'; // fallback para contrato fixo
-      // Cedro manda ticks parciais — merge com último tick válido
+      // Cedro manda ticks parciais â merge com Ãºltimo tick vÃ¡lido
       const prev = this.lastTicks[sym] || {};
       const merged = {
         ...prev,
@@ -66,7 +66,7 @@ class DataNormalizer {
     if (!raw || !raw.bid || !raw.ask || !raw.last) return null;
     if (raw.bid > raw.ask) return null;
     return {
-      symbol:      raw.symbol    || 'WDOFUT',  // preserva símbolo real (WDON26, DOLQ26)
+      symbol:      raw.symbol    || 'WDOFUT',  // preserva sÃ­mbolo real (WDON26, DOLQ26)
       timestamp:   raw.timestamp || Date.now(),
       phase:       (() => {
         const p = raw.phase;
@@ -85,7 +85,7 @@ class DataNormalizer {
       trade_vol:   raw.trade_vol || 0,
       cum_vol:     raw.cum_vol   || 0,
       source:      raw.source    || 'unknown',
-      // Leilão
+      // LeilÃ£o
       theor_price: raw.theor_price || 0,
       theor_qty:   raw.theor_qty   || 0,
       surplus:     raw.surplus     || 0,
@@ -97,7 +97,7 @@ class DataNormalizer {
 
   _validateBook(raw) {
     if (!raw || !Array.isArray(raw.bids) || !Array.isArray(raw.asks)) return null;
-    // price_depth_real: qty pode ser 0 em alguns níveis mas price é válido — não filtrar por qty
+    // price_depth_real: qty pode ser 0 em alguns nÃ­veis mas price Ã© vÃ¡lido â nÃ£o filtrar por qty
     const isRealDepth = raw.source === 'price_depth_real';
     const bids = raw.bids.filter(b => b.price > 0 && (isRealDepth || b.qty > 0)).sort((a,b) => b.price - a.price);
     const asks = raw.asks.filter(a => a.price > 0 && (isRealDepth || a.qty > 0)).sort((a,b) => a.price - b.price);
