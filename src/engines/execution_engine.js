@@ -76,14 +76,14 @@ class ExecutionEngine {
     // Broadcast to frontend
     this.bus.emit('ws:broadcast', { type: 'execution_fill', data: position });
 
-    // Monitorar stop/alvo com preÃ§o real da Cedro
+    // Monitorar stop/alvo com preco real do ProfitBridge
     this._monitorPosition(position);
 
     return position;
   }
 
   _monitorPosition(position) {
-    // Monitora preÃ§o real da Cedro via normalized:tick
+    // Monitora preco real via market:tick
     const handler = (tick) => {
       const pos = this.positions.find(p => p.id === position.id && p.status === 'open');
       if (!pos) { this.bus.off('normalized:tick', handler); return; }
