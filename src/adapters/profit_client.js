@@ -1,8 +1,8 @@
 'use strict';
 /**
- * ProfitClient v3.2 Ã¢ÂÂ MDIL integrado
+ * ProfitClient v3.2 ÃÂ¢ÃÂÃÂ MDIL integrado
  * TinyBook nao sobrescreve OfferBook real quando >= 5 niveis disponiveis.
- * MDIL detecta ghost feed e marca dados sintÃÂ©ticos.
+ * MDIL detecta ghost feed e marca dados sintÃÂÃÂ©ticos.
  */
 const WDO_SYMBOLS = ['WDOFUT','WDON26','WDOQ26','WDOV26','WDO'];
 const DOL_SYMBOLS = ['DOLFUT','DOLN26','DOLQ26','DOLV26','DOL'];
@@ -16,7 +16,7 @@ class ProfitClient {
     this.mdil = new MarketDataIntegrityLayer(bus);
   }
   start() {
-    console.log('[PROFIT-CLIENT] v3.2 Modo Invertido Ã¢ÂÂ MDIL ativo Ã¢ÂÂ aguardando VPS em /bridge');
+    console.log('[PROFIT-CLIENT] v3.2 Modo Invertido ÃÂ¢ÃÂÃÂ MDIL ativo ÃÂ¢ÃÂÃÂ aguardando VPS em /bridge');
     this.mdil.start();
     this._listenBus();
   }
@@ -67,7 +67,7 @@ class ProfitClient {
     this.bus.emit('market:ticker_state',{symbol:sym,state:msg.state,in_auction:msg.in_auction,timestamp:msg.timestamp});
   }
   _onOfferBook(msg) {
-    // Notificar MDIL Ã¢ÂÂ recebeu OfferBook real
+    // Notificar MDIL ÃÂ¢ÃÂÃÂ recebeu OfferBook real
     const _sym2 = msg.ticker || '';
     const _bids = Object.values(this.bookWDO.bids).length + Object.values(this.bookDOL.bids).length;
     this.mdil.onOfferBook(_sym2, _bids);
@@ -107,7 +107,7 @@ class ProfitClient {
     else this.bus.emit('market:book:dol',{symbol:sym,bids,asks,timestamp:Date.now(),source:'offer_book'});
   }
   _onTinyBook(msg) {
-    // Notificar MDIL Ã¢ÂÂ apenas TinyBook chegou
+    // Notificar MDIL ÃÂ¢ÃÂÃÂ apenas TinyBook chegou
     this.mdil.onTinyBook(msg.ticker || '');
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
@@ -118,7 +118,7 @@ class ProfitClient {
     const bidCount = Object.keys(realBook.bids||{}).length;
     const askCount = Object.keys(realBook.asks||{}).length;
     if(bidCount >= 5 || askCount >= 5) {
-      return; // OfferBook real disponivel Ã¢ÂÂ ignorar TinyBook
+      return; // OfferBook real disponivel ÃÂ¢ÃÂÃÂ ignorar TinyBook
     }
     // Log diagnostico (quando sem OfferBook real)
     if(!this._tinyCounts) this._tinyCounts={};
@@ -127,10 +127,14 @@ class ProfitClient {
     const ref = isWDO ? this.lastWDO : this.lastDOL;
     const bid = ref.bid || 0;
     const ask = ref.ask || 0;
-    // Estimar o lado faltante com 0.5 pts de spread (WDO tick size)
     const TICK = 0.5;
-    const effectiveBid = bid || (ask ? ask - TICK : 0);
-    const effectiveAsk = ask || (bid ? bid + TICK : 0);
+    // Usar preco do proprio TinyBook como fallback quando bid/ask nao disponiveis
+    const tinyPrice = msg.price || 0;
+    let effectiveBid = bid || (ask ? ask - TICK : 0) || (tinyPrice ? tinyPrice - TICK : 0);
+    let effectiveAsk = ask || (bid ? bid + TICK : 0) || (tinyPrice ? tinyPrice + TICK : 0);
+    // Se o TinyBook veio com side, usar o preco direto
+    if (msg.side === 'BUY'  && tinyPrice) { effectiveBid = tinyPrice; effectiveAsk = effectiveAsk || tinyPrice + TICK; }
+    if (msg.side === 'SELL' && tinyPrice) { effectiveAsk = tinyPrice; effectiveBid = effectiveBid || tinyPrice - TICK; }
     if(!effectiveBid || !effectiveAsk) return;
     const LEVELS = 40;
     const bids = Array.from({length:LEVELS},(_,i)=>({
