@@ -73,6 +73,19 @@ function createServer(bus, engines = {}) {
 
       ws.send(JSON.stringify({ type: 'connected', ts: Date.now() }));
 
+      // Keepalive para o bridge — Railway fecha conexoes inativas
+      const keepalive = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.ping();
+        } else {
+          clearInterval(keepalive);
+        }
+      }, 8000);
+
+      ws.on('pong', () => {
+        // bridge respondeu ao ping — conexao viva
+      });
+
       ws.on('message', (raw) => {
         try {
           // Sanitizar -Infinity e Infinity antes do JSON.parse
@@ -95,6 +108,7 @@ function createServer(bus, engines = {}) {
       });
 
       ws.on('close', () => {
+        clearInterval(keepalive);
         bridges.delete(ws);
         log.warn('ProfitBridge desconectado');
         bus.emit('profit:connection_state', { type: 'connection_state', conn_type: 2, result: 0 });
