@@ -27,17 +27,17 @@ class TelegramNotifier {
       return;
     }
 
-    this.log.info('OK Telegram Notifier ativo â grupo Wdo_auction');
+    this.log.info('OK Telegram Notifier ativo â grupo Wdo_auction');
     this._listenEvents();
     // Mensagem de startup removida - evita spam no Telegram
   }
 
   _listenEvents() {
-    // ââ NotificaÃ§Ãµes de ciclo do pregÃ£o ââââââââââââââââââââââ
+    // ââ NotificaÃ§Ãµes de ciclo do pregÃ£o ââââââââââââââââââââââ
     // Claude liga Ã s 8h55 - notifica
     this.bus.on('claude:iniciou', (d) => {
       if (!this.enabled) return;
-      this._send(`ð§  *Claude ligou - 8h55*\nAnalisando dados do leilÃ£o...\nAguarde veredicto atÃ© 9h00:40`);
+      this._send(`ð§  *Claude ligou - 8h55*\nAnalisando dados do leilÃ£o...\nAguarde veredicto atÃ© 9h00:40`);
     });
 
     this.bus.on('macro:bom_dia', (d) => {
@@ -46,7 +46,7 @@ class TelegramNotifier {
       const spy  = snap.sp500?.price?.toFixed(0) || '-';
       const vix  = snap.vix?.price?.toFixed(1)   || '-';
       const usd  = snap.usdbrl?.price?.toFixed(3) || '-';
-      this._send(`ð¡ *MacroEngine ligou - 8h45*\nSPY: ${spy} | VIX: ${vix} | USD/BRL: ${usd}\nMacro Score: ${snap.macroScore ?? 0}/10`);
+      this._send(`ð¡ *MacroEngine ligou - 8h45*\nSPY: ${spy} | VIX: ${vix} | USD/BRL: ${usd}\nMacro Score: ${snap.macroScore ?? 0}/10`);
     });
 
     // auction:state_change removido - sistema opera por horÃ¡rio
@@ -56,7 +56,7 @@ class TelegramNotifier {
       if (!['auction','pre_open'].includes(d.phase)) return;
       const conf = Math.round((d.confianca || 0) * 100);
       const verd = d.veredito || 'NAO_OPERAR';
-      this._send(`ð§  *Claude analisou*\nConfianÃ§a: ${conf}% | ${verd}\nMacro: ${d.macro_bias || 'NEUTRO'} | DOLÃWDO: ${d.confluencia || '-'}`);
+      this._send(`ð§  *Claude analisou*\nConfianÃ§a: ${conf}% | ${verd}\nMacro: ${d.macro_bias || 'NEUTRO'} | DOLÃWDO: ${d.confluencia || '-'}`);
     });
 
     // Monitora status da ProfitDLL
@@ -72,8 +72,8 @@ class TelegramNotifier {
   }
 
   _enviarSinal(sinal) {
-    const dir  = sinal.direction === 'buy' ? 'ð¢ COMPRA' : 'ð´ VENDA';
-    const emoji = sinal.direction === 'buy' ? 'ð' : 'ð';
+    const dir  = sinal.direction === 'buy' ? 'ð¢ COMPRA' : 'ð´ VENDA';
+    const emoji = sinal.direction === 'buy' ? 'ð' : 'ð';
     const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'America/Sao_Paulo' });
     const conf = Math.round((sinal.aiConfianca || 0) * 100);
     const surplus = sinal.confluence?.surplus || 0;
