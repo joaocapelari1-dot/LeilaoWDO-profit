@@ -265,14 +265,25 @@ def subscribe(dll):
 
     for s in SYMBOLS:
         t = dll.SubscribeTicker(s, EXCHANGE_BMF)
-        # SubscribePriceDepth com TConnectorAssetIdentifier
-        asset = TConnectorAssetIdentifier()
-        asset.Version  = 0
-        asset.Ticker   = s
-        asset.Exchange = EXCHANGE_BMF
-        asset.FeedType = 0
-        pd = dll.SubscribePriceDepth(ctypes.byref(asset))
-        log.info(f"Subscribe [{s}] Ticker={t} PriceDepth={pd}")
+        # SubscribePriceDepth — tenta mas nao falha se DLL nao suportar
+        pd_result = "N/A"
+        try:
+            asset = TConnectorAssetIdentifier()
+            asset.Version  = 0
+            asset.Ticker   = s
+            asset.Exchange = EXCHANGE_BMF
+            asset.FeedType = 0
+            pd = dll.SubscribePriceDepth(ctypes.byref(asset))
+            # -2147483647 = INT_MIN = funcao nao suportada nesta versao da DLL
+            if pd == -2147483647 or pd < 0:
+                log.warning(f"SubscribePriceDepth nao suportado em [{s}] (ret={pd}) — usando TinyBook")
+                pd_result = "UNSUPPORTED"
+            else:
+                pd_result = str(pd)
+        except Exception as e:
+            log.warning(f"SubscribePriceDepth erro em [{s}]: {e} — usando TinyBook")
+            pd_result = "ERROR"
+        log.info(f"Subscribe [{s}] Ticker={t} PriceDepth={pd_result}")
 
 def dll_thread(dll):
     try:
