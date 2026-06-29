@@ -49,7 +49,7 @@ function createServer(bus, engines = {}) {
 
   const httpServer = http.createServer(app);
 
-  // Ã¢ÂÂÃ¢ÂÂ WebSocket server unico Ã¢ÂÂ distingue /bridge de /ws Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+  // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ WebSocket server unico ÃÂ¢ÃÂÃÂ distingue /bridge de /ws ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
   const wss     = new WebSocket.Server({ server: httpServer });
   const clients = new Set();   // frontends
   const bridges = new Set();   // VPS ProfitBridge
@@ -66,14 +66,14 @@ function createServer(bus, engines = {}) {
     const url    = req.url || '';
     const secret = req.headers['x-bridge-secret'] || '';
 
-    // Ã¢ÂÂÃ¢ÂÂ Conexao do ProfitBridge (VPS) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+    // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Conexao do ProfitBridge (VPS) ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
     if (url === '/bridge' && secret === BRIDGE_SECRET && BRIDGE_SECRET) {
       log.info('ProfitBridge VPS conectado');
       bridges.add(ws);
 
       ws.send(JSON.stringify({ type: 'connected', ts: Date.now() }));
 
-      // Keepalive para o bridge Ã¢ÂÂ Railway fecha conexoes inativas (v2)
+      // Keepalive para o bridge ÃÂ¢ÃÂÃÂ Railway fecha conexoes inativas (v2)
       const keepalive = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.ping();
@@ -83,7 +83,7 @@ function createServer(bus, engines = {}) {
       }, 8000);
 
       ws.on('pong', () => {
-        // bridge respondeu ao ping Ã¢ÂÂ conexao viva
+        // bridge respondeu ao ping ÃÂ¢ÃÂÃÂ conexao viva
       });
 
       ws.on('message', (raw) => {
@@ -117,7 +117,7 @@ function createServer(bus, engines = {}) {
       return;
     }
 
-    // Ã¢ÂÂÃ¢ÂÂ Conexao do frontend Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+    // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Conexao do frontend ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
     if (url === '/ws' || url === '/') {
       clients.add(ws);
       log.info('WS client conectado (' + clients.size + ')');
@@ -132,18 +132,18 @@ function createServer(bus, engines = {}) {
     ws.close(1008, 'Invalid path or secret');
   });
 
-  // Ã¢ÂÂÃ¢ÂÂ Broadcasts para o frontend Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+  // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Broadcasts para o frontend ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
   bus.on('normalized:tick',         d => broadcast('tick',           d));
   bus.on('book:update',             d => broadcast('book',           d));
-  bus.on('cedro:book:wdo',          d => broadcast('book',           d));
-  bus.on('cedro:book:dol',          d => broadcast('book_dol',       d));
+  bus.on('market:book:wdo',          d => broadcast('book',           d));
+  bus.on('market:book:dol',          d => broadcast('book_dol',       d));
   bus.on('book:update:dol',         d => broadcast('book_dol',       d));
   bus.on('feature:wdo',             d => broadcast('features',       d));
   bus.on('feature:dol',             d => broadcast('features_dol',   d));
   bus.on('market:features',         d => broadcast('market_features',d));
-  bus.on('cedro:tick:dol',          d => broadcast('tick_dol',       d));
+  bus.on('market:tick:dol',          d => broadcast('tick_dol',       d));
   bus.on('auction:state',           d => broadcast('auction_state',  d));
-  bus.on('cedro:ticker_state',      d => broadcast('auction_state',  d));
+  bus.on('market:ticker_state',      d => broadcast('auction_state',  d));
   bus.on('signal:approved',         d => broadcast('signal',         d));
   bus.on('mdil:status',             d => broadcast('mdil_status',    d));
   bus.on('mdil:ghost_feed',         d => broadcast('mdil_ghost',     d));
