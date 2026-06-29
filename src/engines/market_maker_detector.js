@@ -1,7 +1,7 @@
 /**
  * Market Maker Detector
- * Detecta presença de formadores de mercado no book do WDO
- * Usa os códigos de corretora do BQT (índice <corretora>)
+ * Detecta presenÃ§a de formadores de mercado no book do WDO
+ * Usa os cÃ³digos de corretora do BQT (Ã­ndice <corretora>)
  */
 const { getBroker, isMarketMaker, getBrokerName } = require('../utils/broker_map');
 const { Logger } = require('../utils/logger');
@@ -10,8 +10,8 @@ class MarketMakerDetector {
   constructor(bus) {
     this.bus         = bus;
     this.log         = new Logger('MM-DETECTOR');
-    this.mmBids      = {}; // price → { broker, qty, nome }
-    this.mmAsks      = {}; // price → { broker, qty, nome }
+    this.mmBids      = {}; // price â { broker, qty, nome }
+    this.mmAsks      = {}; // price â { broker, qty, nome }
     this.mmAtivos    = new Set(); // brokers ativos no book
     this.lastUpdate  = null;
     this._listen();
@@ -19,7 +19,7 @@ class MarketMakerDetector {
   }
 
   _listen() {
-    this.bus.on('cedro:book:raw', (data) => {
+    this.bus.on('market:book:raw', (data) => {
       this._processBookRaw(data);
     });
 
