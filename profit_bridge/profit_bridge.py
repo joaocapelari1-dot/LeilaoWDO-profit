@@ -338,9 +338,9 @@ async def railway_loop():
             async with websockets.connect(
                 RAILWAY_URL,
                 additional_headers={"X-Bridge-Secret": BRIDGE_SECRET},
-                ping_interval=20,
-                ping_timeout=30,
-                close_timeout=10,
+                ping_interval=10,
+                ping_timeout=20,
+                close_timeout=5,
             ) as ws:
                 log.info("CONECTADO ao Railway via /bridge!")
                 backoff = 5
