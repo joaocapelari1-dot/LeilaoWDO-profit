@@ -219,7 +219,7 @@ class MarketContextEngine {
     });
   }
 
-  // ââ 3. FORMADORES DE MERCADO (Placeholder Cedro) âââââââââââââ
+  // -- 3. FORMADORES DE MERCADO --
   updateMarketMakers(bookL2Data) {
     // Dados do ProfitBridge
     // Identifica concentracao anormal de volume em um Ãºnico nÃ­vel
