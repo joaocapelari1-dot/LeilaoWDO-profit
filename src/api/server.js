@@ -73,7 +73,7 @@ function createServer(bus, engines = {}) {
 
       ws.send(JSON.stringify({ type: 'connected', ts: Date.now() }));
 
-      // Keepalive para o bridge — Railway fecha conexoes inativas
+      // Keepalive para o bridge — Railway fecha conexoes inativas (v2)
       const keepalive = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.ping();
