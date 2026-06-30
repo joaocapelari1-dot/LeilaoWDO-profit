@@ -715,7 +715,7 @@ export function SuperDOM({ book, features, mdilStatus, levels = 40 }) {
         <span style={{ fontSize:9, color:C.gold, letterSpacing:1, fontFamily:'monospace' }}>SUPER DOM · WDO MINI</span>
           {mdilStatus?.synthetic && <span style={{fontSize:7,color:'#f59e0b',border:'1px solid #f59e0b44',borderRadius:2,padding:'0 2px',marginLeft:4}}>SIMULADO</span>}
           {mdilStatus?.mqs != null && <span style={{fontSize:7,color:mdilStatus.mqs>=85?'#10b981':mdilStatus.mqs>=60?'#f59e0b':'#ef4444',marginLeft:4}}>MQS {mdilStatus.mqs}</span>}
-        <span style={{ fontSize:9, color:C.muted, fontFamily:'monospace' }}>{book?.symbol || 'WDON26'}</span>
+        <span style={{ fontSize:9, color:C.muted, fontFamily:'monospace' }}>{book?.symbol || 'WDOQ26'}</span>
       </div>
       <div style={{ display:'flex', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
         <div style={{ flex:1, padding:'4px 6px', fontSize:9, color:C.green }}>COMPRA</div>
@@ -788,7 +788,7 @@ export function SuperDOMDOL({ dolFeatures, bookDol, dolTick, mdilStatus, levels 
     const ask  = lastPrice
     const bids = Array.from({length:40},(_,i)=>({ price:Math.round((bid-i*TICK)*100)/100, qty:Math.max(1,Math.round(50*Math.exp(-i*0.15))) }))
     const asks = Array.from({length:40},(_,i)=>({ price:Math.round((ask+i*TICK)*100)/100, qty:Math.max(1,Math.round(50*Math.exp(-i*0.15))) }))
-    return { symbol:'DOLN26', bids, asks, bid_vol_total:364, ask_vol_total:364, imbalance:0, source:'synthetic' }
+    return { symbol:'DOLQ26', bids, asks, bid_vol_total:364, ask_vol_total:364, imbalance:0, source:'synthetic' }
   }, [rawBook, lastPrice])
   const bids      = book?.bids || []
   const asks      = book?.asks || []
