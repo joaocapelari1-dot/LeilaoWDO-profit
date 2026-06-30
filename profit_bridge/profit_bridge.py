@@ -1,8 +1,24 @@
 """
-ProfitBridge v5.0 - Conforme documentacao oficial Nelogica
-Papel: DLL -> JSON -> WebSocket. Zero logica de negocio.
+ProfitBridge v6.0
+Implementado exclusivamente a partir da documentacao oficial Nelogica:
+  - Ecossistema ProfitDLL e primeiros passos
+  - Funcoes Real Time - DLL
+  - Como utilizar o Livro de Profundidade (Price Depth) via DLL Real Time
+  - Como saber se a DLL esta conectada
+
+Papel deste processo: DLL -> JSON -> WebSocket. Nenhuma logica de negocio aqui.
+Todo calculo de leilao, risco ou sinal acontece no backend (Railway), nunca aqui.
 """
-import asyncio, ctypes, json, logging, math, os, queue, sys, threading, time
+import asyncio
+import ctypes
+import json
+import logging
+import math
+import os
+import queue
+import sys
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -11,7 +27,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Logging ──────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
+# Logging
+# ──────────────────────────────────────────────────────────────────
 LOG_DIR = Path(r"C:\ProfitBridge\logs")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
@@ -24,28 +42,31 @@ logging.basicConfig(
 )
 log = logging.getLogger("ProfitBridge")
 
-# ── Configuracao ─────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
+# Configuracao (variaveis de ambiente — ver launcher.py)
+# ──────────────────────────────────────────────────────────────────
 ACTIVATION_KEY = os.getenv("PROFIT_ACTIVATION_KEY", "")
 USERNAME       = os.getenv("PROFIT_USERNAME", "")
 PASSWORD       = os.getenv("PROFIT_PASSWORD", "")
 DLL_PATH       = os.getenv("PROFIT_DLL_PATH", r"C:\ProfitBridge\Win64\ProfitDLL.dll")
-# Documentacao Nelogica usa ticker generico (WDOFUT) para PriceDepth.
-# Tickers especificos com vencimento (WDON26) podem nao funcionar com SubscribePriceDepth.
-# Mantemos SubscribeTicker com o vencimento especifico (trades/tiny_book funcionam normalmente)
-# mas testamos PriceDepth tambem com o ticker generico como fallback.
 SYMBOLS_RAW    = os.getenv("SYMBOLS", "WDON26,DOLN26")
-SYMBOLS        = [s.strip() for s in SYMBOLS_RAW.split(",")]
+SYMBOLS        = [s.strip() for s in SYMBOLS_RAW.split(",") if s.strip()]
 RAILWAY_URL    = os.getenv("RAILWAY_WS_URL", "wss://leilaowdo-profit-production.up.railway.app/bridge")
 BRIDGE_SECRET  = os.getenv("BRIDGE_SECRET", "")
 EXCHANGE_BMF   = "F"
 LOCK_FILE      = Path(r"C:\ProfitBridge\bridge.lock")
+STATUS_FILE    = Path(r"C:\ProfitBridge\bridge.status")
 
-log.info(f"=== ProfitBridge v5.0 ===")
+log.info("=== ProfitBridge v6.0 ===")
 log.info(f"Railway: {RAILWAY_URL}")
 log.info(f"Simbolos: {SYMBOLS}")
 
-# ── Fila thread-safe ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
+# Fila thread-safe — callbacks SO enfileiram, nunca processam
+# (documentacao: callbacks rodam na ConnectorThread, bloquear = atraso)
+# ──────────────────────────────────────────────────────────────────
 event_queue = queue.Queue(maxsize=30000)
+
 
 def enqueue(obj):
     try:
@@ -53,28 +74,38 @@ def enqueue(obj):
     except queue.Full:
         pass
 
+
 def safe_json(obj):
-    """Serializa para JSON tratando -inf, inf e NaN como null."""
+    """JSON nao aceita -inf/inf/NaN. A doc menciona que Price pode vir -INF
+    durante leilao (sinalizacao de preco teorico) — sanitizamos antes de serializar."""
     def sanitize(o):
         if isinstance(o, dict):
             return {k: sanitize(v) for k, v in o.items()}
         if isinstance(o, list):
             return [sanitize(v) for v in o]
-        if isinstance(o, float):
-            if not math.isfinite(o):
-                return None
+        if isinstance(o, float) and not math.isfinite(o):
+            return None
         return o
     return json.dumps(sanitize(obj))
 
-# ── Estruturas ctypes (documentacao Nelogica) ────────────────────
-class TAssetIDRec(ctypes.Structure):
+
+# ──────────────────────────────────────────────────────────────────
+# Estruturas ctypes — exatamente como documentado
+# ──────────────────────────────────────────────────────────────────
+
+class TAssetID(ctypes.Structure):
+    """Struct legada usada pelos callbacks de inicializacao (trade, daily, tiny_book).
+    Documentacao: 'Topo do livro (TinyBook)' e 'Ecossistema ProfitDLL'."""
     _fields_ = [
-        ("pwcTicker", ctypes.c_wchar_p),
-        ("pwcBolsa",  ctypes.c_wchar_p),
-        ("nFeed",     ctypes.c_int),
+        ("Ticker",   ctypes.c_wchar_p),
+        ("Bolsa",    ctypes.c_wchar_p),
+        ("Feed",     ctypes.c_int),
     ]
 
+
 class TConnectorAssetIdentifier(ctypes.Structure):
+    """Struct moderna usada por SubscribePriceDepth, GetPriceGroup,
+    GetPriceDepthSideCount, GetTheoreticalValues e pelo callback de PriceDepth."""
     _fields_ = [
         ("Version",  ctypes.c_ubyte),
         ("Ticker",   ctypes.c_wchar * 25),
@@ -82,117 +113,208 @@ class TConnectorAssetIdentifier(ctypes.Structure):
         ("FeedType", ctypes.c_int),
     ]
 
+
 class TConnectorPriceGroup(ctypes.Structure):
+    """Retornada por GetPriceGroup. Quantity e Int64 — documentacao alerta
+    explicitamente para usar c_longlong, nunca c_long (trunca em Windows x64)."""
     _fields_ = [
         ("Version",         ctypes.c_ubyte),
         ("Price",           ctypes.c_double),
         ("Count",           ctypes.c_uint),
-        ("Quantity",        ctypes.c_longlong),   # Int64 — OBRIGATORIO c_longlong
+        ("Quantity",        ctypes.c_longlong),
         ("PriceGroupFlags", ctypes.c_uint),
     ]
 
-# ── Tipos de callback (documentacao Nelogica) ────────────────────
-TStateCallback             = ctypes.WINFUNCTYPE(None, ctypes.c_int, ctypes.c_int)
-TNewTradeCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p,
-                                ctypes.c_uint32, ctypes.c_double, ctypes.c_double,
-                                ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char)
-TNewDailyCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p,
-                                ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
-                                ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
-                                ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_int,
-                                ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int)
-TPriceBookCallback         = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_int, ctypes.c_int,
-                                ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_double,
-                                ctypes.c_void_p, ctypes.c_void_p)
-TOfferBookCallback         = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_int, ctypes.c_int,
-                                ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int64,
-                                ctypes.c_double, ctypes.c_char, ctypes.c_char, ctypes.c_char,
-                                ctypes.c_char, ctypes.c_char, ctypes.c_wchar_p,
-                                ctypes.c_void_p, ctypes.c_void_p)
-THistoryTradeCallback      = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p,
-                                ctypes.c_uint32, ctypes.c_double, ctypes.c_double,
-                                ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int)
-TTinyBookCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_double, ctypes.c_int, ctypes.c_int)
-TTheoreticalPriceCallback  = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_double, ctypes.c_int64)
-TChangeStateTickerCallback = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_wchar_p, ctypes.c_int)
-TProgressCallback          = ctypes.WINFUNCTYPE(None, TAssetIDRec, ctypes.c_int)
 
-# Asset identifier passado POR VALOR no callback (nao como ponteiro)
+# ──────────────────────────────────────────────────────────────────
+# Tipos de callback — assinaturas exatas da documentacao
+# ──────────────────────────────────────────────────────────────────
+
+# Callback de estado de conexao (login, roteamento, market data, market login)
+TStateCallback = ctypes.WINFUNCTYPE(None, ctypes.c_int, ctypes.c_int)
+
+# Callback de trade legado, usado na inicializacao (DLLInitializeMarketLogin).
+# A doc indica TConnectorTradeCallback + SetTradeCallbackV2 como API atual de trade,
+# mas a assinatura abaixo e a exigida pelos parametros de DLLInitializeMarketLogin.
+TNewTradeCallback = ctypes.WINFUNCTYPE(
+    None, TAssetID, ctypes.c_wchar_p, ctypes.c_uint32,
+    ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_int,
+    ctypes.c_int, ctypes.c_int, ctypes.c_char,
+)
+
+# Callback de dados diarios consolidados — NAO e tempo real (doc: "atualizado
+# em intervalos maiores, na ordem de segundos").
+TNewDailyCallback = ctypes.WINFUNCTYPE(
+    None, TAssetID, ctypes.c_wchar_p,
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+    ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_int,
+    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+)
+
+# Callbacks exigidos como parametro de DLLInitializeMarketLogin mas nao usados
+# para extracao de dados (mantidos como stub vazio, apenas para satisfazer a assinatura).
+TPriceBookCallback = ctypes.WINFUNCTYPE(
+    None, TAssetID, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+    ctypes.c_int, ctypes.c_int, ctypes.c_double,
+    ctypes.c_void_p, ctypes.c_void_p,
+)
+TOfferBookCallback = ctypes.WINFUNCTYPE(
+    None, TAssetID, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+    ctypes.c_int, ctypes.c_int, ctypes.c_int64, ctypes.c_double,
+    ctypes.c_char, ctypes.c_char, ctypes.c_char, ctypes.c_char, ctypes.c_char,
+    ctypes.c_wchar_p, ctypes.c_void_p, ctypes.c_void_p,
+)
+THistoryTradeCallback = ctypes.WINFUNCTYPE(
+    None, TAssetID, ctypes.c_wchar_p, ctypes.c_uint32,
+    ctypes.c_double, ctypes.c_double, ctypes.c_int, ctypes.c_int,
+    ctypes.c_int, ctypes.c_int,
+)
+TProgressCallback = ctypes.WINFUNCTYPE(None, TAssetID, ctypes.c_int)
+
+# Topo do livro — TTinyBookCallback (documentacao: "Topo do livro (TinyBook)")
+# Assinatura: (asset, price, qty, side) — side: 0=bid, 1=ask
+TTinyBookCallback = ctypes.WINFUNCTYPE(
+    None, TAssetID, ctypes.c_double, ctypes.c_int, ctypes.c_int,
+)
+
+# Preco teorico durante leilao (SetTheoreticalPriceCallback)
+TTheoreticalPriceCallback = ctypes.WINFUNCTYPE(
+    None, TAssetID, ctypes.c_double, ctypes.c_int64,
+)
+
+# Mudanca de estado do ticker (abertura, leilao, fechamento)
+TChangeStateTickerCallback = ctypes.WINFUNCTYPE(
+    None, TAssetID, ctypes.c_wchar_p, ctypes.c_int,
+)
+
+# Livro de profundidade — TConnectorPriceDepthCallback
+# Documentacao: "asset passado POR VALOR (nao como ponteiro)";
+# ordem (asset, side, position, updateType); updateType e byte (c_ubyte).
 TConnectorPriceDepthCallback = ctypes.WINFUNCTYPE(
     None,
-    TConnectorAssetIdentifier,  # por valor — sem POINTER
-    ctypes.c_ubyte,             # side: 0=buy 1=sell
+    TConnectorAssetIdentifier,  # por valor
+    ctypes.c_ubyte,             # side: 0=buy, 1=sell
     ctypes.c_int,               # position
     ctypes.c_ubyte,             # updateType
 )
 
-# ── Callbacks — SO ENFILEIRAM ────────────────────────────────────
-_cb_refs = {}
+
+# ──────────────────────────────────────────────────────────────────
+# Callbacks — SO enfileiram (documentacao: "Apenas enfileire dentro
+# do callback; processe em outra thread")
+# ──────────────────────────────────────────────────────────────────
+_cb_refs = {}     # mantem referencias vivas — anti garbage-collector
 _dll_ref = None
 dll_ready = threading.Event()
 
-def _cb_state(t, r):
-    names   = {0:"LOGIN", 1:"ROTEAMENTO", 2:"MARKET_DATA", 3:"MARKET_LOGIN"}
-    results = {0:"CONNECTED", 1:"CONNECTING", 2:"WAITING", 3:"NOT_LOGGED", 4:"CONNECTED", 5:"BROKER_CONNECTED"}
-    log.info(f"STATE [{names.get(t,'?')}] -> {results.get(r, str(r))}")
-    # MARKET_DATA=2 + CONNECTED=4 => pronto para subscribes
-    if t == 2 and r == 4:
+
+def _cb_state(conn_type, result):
+    names_type   = {0: "LOGIN", 1: "ROTEAMENTO", 2: "MARKET_DATA", 3: "MARKET_LOGIN"}
+    names_result = {0: "DISCONNECTED", 1: "CONNECTING", 2: "WAITING", 3: "NOT_LOGGED",
+                     4: "CONNECTED", 5: "BROKER_CONNECTED"}
+    log.info(f"STATE [{names_type.get(conn_type, conn_type)}] -> "
+             f"{names_result.get(result, result)}")
+
+    # Pronto para subscribes quando MARKET_DATA reporta CONNECTED
+    if conn_type == 2 and result == 4:
         dll_ready.set()
-    enqueue({"type": "connection_state", "conn_type": t, "result": r,
-             "ts": datetime.now().isoformat()})
 
-def _cb_trade(a, d, n, p, v, q, ba, sa, tt, e):
-    # tt: 2=BUY_AGRESSIVO 3=SELL_AGRESSIVO 4=AUCTION
-    agg = {2: "buyer", 3: "seller", 4: "auction"}.get(tt)
-    enqueue({"type": "trade", "ticker": a.pwcTicker, "price": p, "volume": v,
-             "quantity": q, "buy_agent": ba, "sell_agent": sa,
-             "aggressor": agg, "ts": datetime.now().isoformat()})
+    enqueue({
+        "type": "connection_state",
+        "conn_type": conn_type,
+        "result": result,
+        "ts": datetime.now().isoformat(),
+    })
 
-def _cb_theo(a, p, q):
-    enqueue({"type": "theoretical_price", "ticker": a.pwcTicker,
-             "theoretical_price": p, "theoretical_qty": q,
-             "ts": datetime.now().isoformat()})
 
-def _cb_state_ticker(a, d, s):
-    names = {0:"OPENED", 4:"AUCTIONED", 6:"CLOSED", 10:"PRE_CLOSING", 13:"PRE_OPENING"}
-    sn = names.get(s, f"UNKNOWN_{s}")
-    log.info(f"TICKER [{a.pwcTicker}] -> {sn}")
-    enqueue({"type": "ticker_state", "ticker": a.pwcTicker, "state": sn,
-             "in_auction": (s == 4), "ts": datetime.now().isoformat()})
+def _cb_trade(asset, date_str, trade_number, price, volume, qty,
+              buy_agent, sell_agent, trade_type, edit):
+    # trade_type: 2=compra agressiva, 3=venda agressiva, 4=leilao (conforme uso ja validado)
+    aggressor = {2: "buyer", 3: "seller", 4: "auction"}.get(trade_type)
+    enqueue({
+        "type": "trade",
+        "ticker": asset.Ticker,
+        "price": price,
+        "volume": volume,
+        "quantity": qty,
+        "buy_agent": buy_agent,
+        "sell_agent": sell_agent,
+        "aggressor": aggressor,
+        "ts": datetime.now().isoformat(),
+    })
 
-def _cb_tiny(a, p, q, s):
-    enqueue({"type": "tiny_book", "ticker": a.pwcTicker, "price": p,
-             "quantity": q, "side": "BUY" if s == 0 else "SELL",
-             "ts": datetime.now().isoformat()})
 
-def _cb_daily(a, d, o, h, l, c, v, *x):
-    enqueue({"type": "daily", "ticker": a.pwcTicker,
-             "open": o, "high": h, "low": l, "close": c, "volume": v,
-             "ts": datetime.now().isoformat()})
+def _cb_daily(asset, date_str, sopen, high, low, close, volume, *rest):
+    enqueue({
+        "type": "daily",
+        "ticker": asset.Ticker,
+        "open": sopen, "high": high, "low": low, "close": close,
+        "volume": volume,
+        "ts": datetime.now().isoformat(),
+    })
 
-def _cb_offer(*a):
-    # OfferBook legado (API DLLInitializeMarketLogin) — nao usado para profundidade.
-    # A documentacao Nelogica recomenda SubscribePriceDepth + TConnectorPriceDepthCallback
-    # (ja implementado em _cb_price_depth) como API atual para livro de profundidade.
-    # Este callback fica registrado mas vazio pois nao e a via documentada para o livro.
-    pass
-def _cb_stub(*a):  pass
+
+def _cb_tiny_book(asset, price, qty, side):
+    enqueue({
+        "type": "tiny_book",
+        "ticker": asset.Ticker,
+        "price": price,
+        "quantity": qty,
+        "side": "BUY" if side == 0 else "SELL",
+        "ts": datetime.now().isoformat(),
+    })
+
+
+def _cb_theoretical_price(asset, price, qty):
+    enqueue({
+        "type": "theoretical_price",
+        "ticker": asset.Ticker,
+        "theoretical_price": price,
+        "theoretical_qty": qty,
+        "ts": datetime.now().isoformat(),
+    })
+
+
+def _cb_state_ticker(asset, date_str, state):
+    names = {0: "OPENED", 4: "AUCTIONED", 6: "CLOSED", 10: "PRE_CLOSING", 13: "PRE_OPENING"}
+    state_name = names.get(state, f"UNKNOWN_{state}")
+    log.info(f"TICKER [{asset.Ticker}] -> {state_name}")
+    enqueue({
+        "type": "ticker_state",
+        "ticker": asset.Ticker,
+        "state": state_name,
+        "in_auction": (state == 4),
+        "ts": datetime.now().isoformat(),
+    })
+
 
 def _cb_price_depth(asset, side, position, update_type):
-    """
-    Callback do PriceDepth — roda na ConnectorThread.
-    SO ENFILEIRA — nao chama funcoes da DLL aqui.
-    """
-    enqueue({"type": "_pd_notify", "ticker": asset.Ticker,
-             "side": side, "pos": position, "ut": update_type})
+    """Documentacao: 'Nao chame funcoes da DLL dentro do callback' e
+    'apenas enfileire'. A leitura real do livro (GetPriceGroup) acontece
+    fora deste callback, na thread consumidora da fila."""
+    enqueue({
+        "type": "_price_depth_notify",
+        "ticker": asset.Ticker,
+        "side": side,
+        "position": position,
+        "update_type": update_type,
+    })
 
-def _read_price_depth(dll, ticker):
-    """
-    Le o livro completo via GetPriceGroup.
-    Chamado FORA do callback (thread consumidora).
-    Documentacao: posicao 0 = topo do livro.
-    Durante leilao, Price pode ser -INF — usar GetTheoreticalValues.
-    """
+
+def _cb_stub(*args):
+    """Callbacks exigidos pela assinatura de DLLInitializeMarketLogin mas
+    sem uso de dados neste bridge (PriceBook legado, OfferBook legado,
+    historico de trades, progresso)."""
+    pass
+
+
+# ──────────────────────────────────────────────────────────────────
+# Leitura do livro de profundidade — fora do callback
+# Documentacao: posicao 0 = topo do livro; durante leilao Price pode
+# vir -INF (use GetTheoreticalValues nesse caso).
+# ──────────────────────────────────────────────────────────────────
+def _read_price_depth(dll, ticker, max_levels=40):
     try:
         asset = TConnectorAssetIdentifier()
         asset.Version  = 0
@@ -201,43 +323,60 @@ def _read_price_depth(dll, ticker):
         asset.FeedType = 0
 
         bids, asks = [], []
-        for side, arr in [(0, bids), (1, asks)]:
+        for side, bucket in [(0, bids), (1, asks)]:
             total = dll.GetPriceDepthSideCount(ctypes.byref(asset), side)
-            for pos in range(min(40, total)):
-                g = TConnectorPriceGroup()
-                g.Version = 0
-                ret = dll.GetPriceGroup(ctypes.byref(asset), side, pos, ctypes.byref(g))
+            for pos in range(min(max_levels, total)):
+                group = TConnectorPriceGroup()
+                group.Version = 0
+                ret = dll.GetPriceGroup(ctypes.byref(asset), side, pos, ctypes.byref(group))
                 if ret != 0:
                     continue
-                is_theoric = bool(g.PriceGroupFlags & 1)
-                price = g.Price
-                # Se preco teorico, buscar valor real
+
+                is_theoric = bool(group.PriceGroupFlags & 1)
+                price = group.Price
+
                 if is_theoric or not math.isfinite(price):
-                    tp = ctypes.c_double(0)
-                    tq = ctypes.c_int64(0)
-                    if dll.GetTheoreticalValues(ctypes.byref(asset), ctypes.byref(tp), ctypes.byref(tq)) == 0:
-                        price = tp.value
+                    theo_price = ctypes.c_double(0)
+                    theo_qty   = ctypes.c_int64(0)
+                    ret_theo = dll.GetTheoreticalValues(
+                        ctypes.byref(asset), ctypes.byref(theo_price), ctypes.byref(theo_qty)
+                    )
+                    if ret_theo == 0:
+                        price = theo_price.value
+
                 if price > 0 and math.isfinite(price):
-                    arr.append({"price": price, "qty": g.Quantity,
-                                "count": g.Count, "is_theoric": is_theoric})
+                    bucket.append({
+                        "price": price,
+                        "qty": group.Quantity,
+                        "count": group.Count,
+                        "is_theoric": is_theoric,
+                    })
 
         if bids or asks:
-            enqueue({"type": "price_depth", "ticker": ticker,
-                     "bids": bids, "asks": asks,
-                     "ts": datetime.now().isoformat()})
+            enqueue({
+                "type": "price_depth",
+                "ticker": ticker,
+                "bids": bids,
+                "asks": asks,
+                "ts": datetime.now().isoformat(),
+            })
     except Exception as e:
         log.error(f"_read_price_depth [{ticker}]: {e}")
 
-# ── Inicializacao da DLL ─────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────────
+# Inicializacao da DLL
+# Documentacao: DLLInitializeMarketLogin(activation, user, password, callbacks...)
+# ──────────────────────────────────────────────────────────────────
 def init_dll(dll):
-    _cb_refs["s"]  = TStateCallback(_cb_state)
-    _cb_refs["t"]  = TNewTradeCallback(_cb_trade)
-    _cb_refs["d"]  = TNewDailyCallback(_cb_daily)
-    _cb_refs["pb"] = TPriceBookCallback(_cb_stub)
-    _cb_refs["ob"] = TOfferBookCallback(_cb_offer)
-    _cb_refs["ht"] = THistoryTradeCallback(_cb_stub)
-    _cb_refs["pr"] = TProgressCallback(_cb_stub)
-    _cb_refs["tb"] = TTinyBookCallback(_cb_tiny)
+    _cb_refs["state"]  = TStateCallback(_cb_state)
+    _cb_refs["trade"]  = TNewTradeCallback(_cb_trade)
+    _cb_refs["daily"]  = TNewDailyCallback(_cb_daily)
+    _cb_refs["pbook"]  = TPriceBookCallback(_cb_stub)
+    _cb_refs["obook"]  = TOfferBookCallback(_cb_stub)
+    _cb_refs["htrade"] = THistoryTradeCallback(_cb_stub)
+    _cb_refs["progress"] = TProgressCallback(_cb_stub)
+    _cb_refs["tiny"]   = TTinyBookCallback(_cb_tiny_book)
 
     dll.DLLInitializeMarketLogin.restype  = ctypes.c_int
     dll.DLLInitializeMarketLogin.argtypes = [
@@ -246,82 +385,81 @@ def init_dll(dll):
         TPriceBookCallback, TOfferBookCallback, THistoryTradeCallback,
         TProgressCallback, TTinyBookCallback,
     ]
-    r = dll.DLLInitializeMarketLogin(
-        ACTIVATION_KEY, USERNAME, PASSWORD,
-        _cb_refs["s"], _cb_refs["t"], _cb_refs["d"],
-        _cb_refs["pb"], _cb_refs["ob"], _cb_refs["ht"],
-        _cb_refs["pr"], _cb_refs["tb"],
-    )
-    if r != 0:
-        raise RuntimeError(f"DLLInitializeMarketLogin falhou: {hex(r)}")
-    log.info("DLL inicializada OK")
 
+    ret = dll.DLLInitializeMarketLogin(
+        ACTIVATION_KEY, USERNAME, PASSWORD,
+        _cb_refs["state"], _cb_refs["trade"], _cb_refs["daily"],
+        _cb_refs["pbook"], _cb_refs["obook"], _cb_refs["htrade"],
+        _cb_refs["progress"], _cb_refs["tiny"],
+    )
+    if ret != 0:
+        raise RuntimeError(f"DLLInitializeMarketLogin falhou: codigo {ret} ({hex(ret)})")
+    log.info("DLL inicializada")
+
+
+# ──────────────────────────────────────────────────────────────────
+# Assinaturas de tempo real
+# Documentacao "Funcoes Real Time - DLL": tabela de Subscribe -> Callback
+# ──────────────────────────────────────────────────────────────────
 def subscribe(dll):
     global _dll_ref
     _dll_ref = dll
 
-    # Registrar callbacks adicionais (SetXCallback — apos inicializacao)
-    _cb_refs["theo"] = TTheoreticalPriceCallback(_cb_theo)
+    # SetTheoreticalPriceCallback — precisa ser registrado apos a inicializacao
+    _cb_refs["theo"] = TTheoreticalPriceCallback(_cb_theoretical_price)
     dll.SetTheoreticalPriceCallback.restype  = ctypes.c_int
     dll.SetTheoreticalPriceCallback.argtypes = [TTheoreticalPriceCallback]
     dll.SetTheoreticalPriceCallback(_cb_refs["theo"])
 
-    _cb_refs["st"] = TChangeStateTickerCallback(_cb_state_ticker)
+    # SetChangeStateTickerCallback — mudancas de estado do ticker (leilao etc)
+    _cb_refs["state_ticker"] = TChangeStateTickerCallback(_cb_state_ticker)
     dll.SetChangeStateTickerCallback.restype  = ctypes.c_int
     dll.SetChangeStateTickerCallback.argtypes = [TChangeStateTickerCallback]
-    dll.SetChangeStateTickerCallback(_cb_refs["st"])
+    dll.SetChangeStateTickerCallback(_cb_refs["state_ticker"])
 
-    # PriceDepth callback — asset por VALOR, nao ponteiro
-    _cb_refs["pd"] = TConnectorPriceDepthCallback(_cb_price_depth)
+    # SetPriceDepthCallback — registra o callback do livro de profundidade.
+    # Documentacao: asset passado por valor, sem POINTER.
+    _cb_refs["price_depth"] = TConnectorPriceDepthCallback(_cb_price_depth)
     dll.SetPriceDepthCallback.restype  = ctypes.c_int
     dll.SetPriceDepthCallback.argtypes = [TConnectorPriceDepthCallback]
-    dll.SetPriceDepthCallback(_cb_refs["pd"])
+    dll.SetPriceDepthCallback(_cb_refs["price_depth"])
 
-    # Configurar argtypes antes de chamar
-    dll.SubscribeTicker.restype       = ctypes.c_int
-    dll.SubscribeTicker.argtypes      = [ctypes.c_wchar_p, ctypes.c_wchar_p]
-    dll.SubscribePriceDepth.restype   = ctypes.c_int
-    dll.SubscribePriceDepth.argtypes  = [ctypes.POINTER(TConnectorAssetIdentifier)]
-    dll.GetPriceDepthSideCount.restype  = ctypes.c_int
-    dll.GetPriceDepthSideCount.argtypes = [ctypes.POINTER(TConnectorAssetIdentifier), ctypes.c_int]
-    dll.GetPriceGroup.restype  = ctypes.c_int
-    dll.GetPriceGroup.argtypes = [ctypes.POINTER(TConnectorAssetIdentifier),
-                                   ctypes.c_int, ctypes.c_int,
-                                   ctypes.POINTER(TConnectorPriceGroup)]
-    dll.GetTheoreticalValues.restype  = ctypes.c_int
-    dll.GetTheoreticalValues.argtypes = [ctypes.POINTER(TConnectorAssetIdentifier),
-                                          ctypes.POINTER(ctypes.c_double),
-                                          ctypes.POINTER(ctypes.c_int64)]
+    # Assinaturas das funcoes usadas no loop de subscribe abaixo
+    dll.SubscribeTicker.restype          = ctypes.c_int
+    dll.SubscribeTicker.argtypes         = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+    dll.SubscribePriceDepth.restype      = ctypes.c_int
+    dll.SubscribePriceDepth.argtypes     = [ctypes.POINTER(TConnectorAssetIdentifier)]
+    dll.GetPriceDepthSideCount.restype   = ctypes.c_int
+    dll.GetPriceDepthSideCount.argtypes  = [ctypes.POINTER(TConnectorAssetIdentifier), ctypes.c_int]
+    dll.GetPriceGroup.restype            = ctypes.c_int
+    dll.GetPriceGroup.argtypes           = [
+        ctypes.POINTER(TConnectorAssetIdentifier),
+        ctypes.c_int, ctypes.c_int,
+        ctypes.POINTER(TConnectorPriceGroup),
+    ]
+    dll.GetTheoreticalValues.restype     = ctypes.c_int
+    dll.GetTheoreticalValues.argtypes    = [
+        ctypes.POINTER(TConnectorAssetIdentifier),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_int64),
+    ]
 
     for sym in SYMBOLS:
-        # SubscribeTicker: ativa trade + tinybook + daily de uma vez
-        # Documentacao: ret != 0 = NL_OK violado (codigo de erro Nelogica)
-        t = dll.SubscribeTicker(sym, EXCHANGE_BMF)
-        log.info(f"SubscribeTicker [{sym}] = {t} ({'OK' if t == 0 else 'ERRO codigo ' + str(t)})")
+        # SubscribeTicker — ativa trade + tinybook + dados diarios de uma vez
+        ret_ticker = dll.SubscribeTicker(sym, EXCHANGE_BMF)
+        log.info(f"SubscribeTicker [{sym}] = {ret_ticker} "
+                 f"({'OK' if ret_ticker == 0 else 'ERRO'})")
 
-        # SubscribePriceDepth: livro de profundidade agregado por nivel
-        # Documentacao: https://ajuda.nelogica.com.br/.../Como-utilizar-o-Livro-de-Profundidade
+        # SubscribePriceDepth — livro de profundidade agregado por nivel
         asset = TConnectorAssetIdentifier()
         asset.Version  = 0
         asset.Ticker   = sym
         asset.Exchange = EXCHANGE_BMF
         asset.FeedType = 0
-        pd = dll.SubscribePriceDepth(ctypes.byref(asset))
-        if pd == 0:
-            log.info(f"SubscribePriceDepth [{sym}] = OK")
-        else:
-            log.warning(f"SubscribePriceDepth [{sym}] = ERRO codigo {pd} — usando TinyBook como fallback")
+        ret_depth = dll.SubscribePriceDepth(ctypes.byref(asset))
+        log.info(f"SubscribePriceDepth [{sym}] = {ret_depth} "
+                 f"({'OK' if ret_depth == 0 else 'ERRO'})")
 
-        # SubscribeOfferBook: livro de ofertas granular (oferta individual com agente)
-        # Documentacao: distinto do PriceDepth — callback TOfferBookCallbackV2 via SetOfferBookCallbackV2
-        try:
-            ob = dll.SubscribeOfferBook(sym, EXCHANGE_BMF)
-            if ob == 0:
-                log.info(f"SubscribeOfferBook [{sym}] = OK")
-            else:
-                log.warning(f"SubscribeOfferBook [{sym}] = ERRO codigo {ob}")
-        except Exception as e:
-            log.warning(f"SubscribeOfferBook [{sym}] indisponivel nesta DLL: {e}")
 
 def dll_thread_fn(dll):
     try:
@@ -335,23 +473,46 @@ def dll_thread_fn(dll):
     except Exception as e:
         log.exception(f"Erro na thread DLL: {e}")
 
-# ── Lock de processo unico ───────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────────
+# Lock de processo unico
+# ──────────────────────────────────────────────────────────────────
 def acquire_lock():
     if LOCK_FILE.exists():
         try:
             pid = int(LOCK_FILE.read_text().strip())
-            import ctypes as _ct
-            h = _ct.windll.kernel32.OpenProcess(0x1000, False, pid)
-            if h:
-                _ct.windll.kernel32.CloseHandle(h)
-                log.error(f"Bridge ja rodando (PID {pid})")
+            handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+            if handle:
+                ctypes.windll.kernel32.CloseHandle(handle)
+                log.error(f"Bridge ja em execucao (PID {pid})")
                 sys.exit(1)
         except Exception:
             pass
     LOCK_FILE.write_text(str(os.getpid()))
     log.info(f"Lock adquirido (PID {os.getpid()})")
 
-# ── Loop WebSocket → Railway ─────────────────────────────────────
+
+def release_lock():
+    try:
+        LOCK_FILE.unlink()
+    except Exception:
+        pass
+
+
+def write_status(railway_connected: bool):
+    try:
+        STATUS_FILE.write_text(json.dumps({
+            "last_heartbeat": datetime.now().isoformat(),
+            "dll_connected": dll_ready.is_set(),
+            "railway_connected": railway_connected,
+        }))
+    except Exception:
+        pass
+
+
+# ──────────────────────────────────────────────────────────────────
+# Loop principal — WebSocket para o Railway
+# ──────────────────────────────────────────────────────────────────
 async def railway_loop():
     backoff = 5
     while True:
@@ -364,93 +525,80 @@ async def railway_loop():
                 ping_timeout=20,
                 close_timeout=5,
             ) as ws:
-                log.info("CONECTADO ao Railway via /bridge!")
+                log.info("Conectado ao Railway (/bridge)")
                 backoff = 5
-                last_hb = asyncio.get_event_loop().time()
+                last_heartbeat = asyncio.get_event_loop().time()
 
                 while True:
-                    events = []
+                    batch = []
                     try:
                         for _ in range(100):
                             msg = event_queue.get_nowait()
-                            if msg.get("type") == "_pd_notify":
-                                # Ler livro FORA do callback — documentacao Nelogica
-                                ut = msg.get("ut", -1)
-                                # utAdd=0 utEdit=1 utDelete=2 utFullBook=4 utFlush=6
-                                if ut in (0, 1, 4, 6) and _dll_ref:
+
+                            if msg.get("type") == "_price_depth_notify":
+                                # Leitura do livro acontece fora do callback,
+                                # disparada apenas nos tipos de atualizacao relevantes.
+                                # utAdd=0 utEdit=1 utFullBook=4 utFlush=6
+                                update_type = msg.get("update_type", -1)
+                                if update_type in (0, 1, 4, 6) and _dll_ref is not None:
                                     ticker = msg["ticker"]
-                                    dll    = _dll_ref
+                                    dll = _dll_ref
                                     asyncio.get_event_loop().run_in_executor(
                                         None, lambda t=ticker, d=dll: _read_price_depth(d, t)
                                     )
                             else:
-                                events.append(msg)
+                                batch.append(msg)
                     except queue.Empty:
                         pass
 
-                    if events:
-                        payload = events if len(events) > 1 else events[0]
+                    if batch:
+                        payload = batch if len(batch) > 1 else batch[0]
                         await ws.send(safe_json(payload))
 
-                    # Gravar bridge.status para o watchdog
-                    now_t = asyncio.get_event_loop().time()
-                    if now_t - last_hb >= 8:
-                        last_hb = now_t
-                        await ws.send(json.dumps({"type": "heartbeat", "ts": int(now_t)}))
-                        # Atualizar status file para o watchdog
-                        try:
-                            status = {
-                                "last_heartbeat": datetime.now().isoformat(),
-                                "dll_connected": True,
-                                "railway_connected": True,
-                            }
-                            Path(r"C:\ProfitBridge\bridge.status").write_text(json.dumps(status))
-                        except Exception:
-                            pass
+                    now = asyncio.get_event_loop().time()
+                    if now - last_heartbeat >= 8:
+                        last_heartbeat = now
+                        await ws.send(json.dumps({"type": "heartbeat", "ts": int(now)}))
+                        write_status(railway_connected=True)
 
                     await asyncio.sleep(0.05)
 
         except Exception as e:
-            log.error(f"Desconectado: {e} — retry em {backoff}s")
-            # Marcar desconectado no status
-            try:
-                status = {
-                    "last_heartbeat": datetime.now().isoformat(),
-                    "dll_connected": True,
-                    "railway_connected": False,
-                }
-                Path(r"C:\ProfitBridge\bridge.status").write_text(json.dumps(status))
-            except Exception:
-                pass
+            log.error(f"Desconectado: {e} — nova tentativa em {backoff}s")
+            write_status(railway_connected=False)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 120)
 
-# ── Entry point ──────────────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────────
+# Entry point
+# ──────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     if not all([ACTIVATION_KEY, USERNAME, PASSWORD]):
-        log.error("Credenciais faltando — verificar launcher.py")
+        log.error("Credenciais ausentes — verificar launcher.py")
         sys.exit(1)
 
-    p = Path(DLL_PATH)
-    if not p.exists():
-        log.error(f"DLL nao encontrada: {p}")
+    dll_path = Path(DLL_PATH)
+    if not dll_path.exists():
+        log.error(f"DLL nao encontrada em: {dll_path}")
         sys.exit(1)
 
     acquire_lock()
+    dll_handle = None
 
     try:
-        # WinDLL = stdcall (OBRIGATORIO conforme documentacao Nelogica)
-        dll = ctypes.WinDLL(str(p))
-        threading.Thread(target=dll_thread_fn, args=(dll,), daemon=True, name="DLLThread").start()
+        # Documentacao: comunicacao stdcall -> WinDLL (CDLL corrompe a pilha silenciosamente)
+        dll_handle = ctypes.WinDLL(str(dll_path))
+        threading.Thread(
+            target=dll_thread_fn, args=(dll_handle,), daemon=True, name="DLLThread"
+        ).start()
         asyncio.run(railway_loop())
     except KeyboardInterrupt:
         log.info("Encerrando...")
-        try:
-            dll.DLLFinalize()
-        except Exception:
-            pass
     finally:
-        try:
-            LOCK_FILE.unlink()
-        except Exception:
-            pass
+        if dll_handle is not None:
+            try:
+                dll_handle.DLLFinalize()
+            except Exception:
+                pass
+        release_lock()
