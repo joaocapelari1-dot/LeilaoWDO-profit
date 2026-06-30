@@ -359,7 +359,8 @@ class MacroEngine {
       if (!spot) return null;
       const r_BR = SELIC_ANUAL;
       const r_US = tnx?.price ? tnx.price / 100 : TREASURY_ANUAL;
-      const dias = this._diasAteVencimento();
+      const simbolo = this.snapshot?.wdo?.symbol || null;
+      const dias = this._diasAteVencimento(simbolo);
       const frac = dias / 252;
       const precoJusto = spot * (1 + r_BR * frac) / (1 + r_US * frac);
       const theorPrice = this.snapshot?.wdo?.theor_price;
@@ -436,13 +437,31 @@ class MacroEngine {
   }
 
   // ── Dias até vencimento do WDO ────────────────────────────
-  _diasAteVencimento() {
+  // Codigos de mes padrao de futuros (CME/B3): F G H J K M N Q U V X Z
+  // = Jan Fev Mar Abr Mai Jun Jul Ago Set Out Nov Dez
+  _diasAteVencimento(simboloContrato) {
     const hoje = new Date();
-    const mes  = hoje.getMonth();
-    const ano  = hoje.getFullYear();
-    const proxMes = mes === 11 ? 0 : mes + 1;
-    const proxAno = mes === 11 ? ano + 1 : ano;
-    const d = new Date(proxAno, proxMes, 1);
+    const CODIGO_MES = { F:0, G:1, H:2, J:3, K:4, M:5, N:6, Q:7, U:8, V:9, X:10, Z:11 };
+
+    let mesVencimento, anoVencimento;
+    const codigo = simboloContrato ? simboloContrato.match(/[A-Z](\d{2})$/) : null;
+
+    if (codigo && CODIGO_MES[simboloContrato[simboloContrato.length - 3]] !== undefined) {
+      // Usa o vencimento REAL do contrato sendo negociado (ex: WDOQ26 -> Q=agosto, 26->2026)
+      const letra = simboloContrato[simboloContrato.length - 3];
+      mesVencimento = CODIGO_MES[letra];
+      anoVencimento = 2000 + parseInt(codigo[1], 10);
+    } else {
+      // Fallback: mes seguinte ao atual (quando simbolo nao informado)
+      const mes = hoje.getMonth();
+      mesVencimento = mes === 11 ? 0 : mes + 1;
+      anoVencimento = mes === 11 ? hoje.getFullYear() + 1 : hoje.getFullYear();
+    }
+
+    // Vencimento WDO/DOL: ultimo dia util do mes anterior ao mes do contrato,
+    // mas para o calculo de CIP usamos a primeira quarta-feira do mes do
+    // contrato como aproximacao do vencimento (padrao de futuros BM&F).
+    const d = new Date(anoVencimento, mesVencimento, 1);
     while (d.getDay() !== 3) d.setDate(d.getDate() + 1);
     const diff = Math.ceil((d - hoje) / (1000 * 60 * 60 * 24));
     return Math.max(diff, 1);
