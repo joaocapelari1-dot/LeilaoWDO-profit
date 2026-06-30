@@ -170,7 +170,12 @@ def _cb_daily(a, d, o, h, l, c, v, *x):
              "open": o, "high": h, "low": l, "close": c, "volume": v,
              "ts": datetime.now().isoformat()})
 
-def _cb_offer(*a): pass   # desativado — crash na DLL 4.0.0.40
+def _cb_offer(*a):
+    # OfferBook legado (API DLLInitializeMarketLogin) — nao usado para profundidade.
+    # A documentacao Nelogica recomenda SubscribePriceDepth + TConnectorPriceDepthCallback
+    # (ja implementado em _cb_price_depth) como API atual para livro de profundidade.
+    # Este callback fica registrado mas vazio pois nao e a via documentada para o livro.
+    pass
 def _cb_stub(*a):  pass
 
 def _cb_price_depth(asset, side, position, update_type):
