@@ -48,7 +48,12 @@ class MarketFeaturesEngine {
     });
 
     // Tape de negócios
+    if (!this._tradeDebugCount) this._tradeDebugCount = 0;
     this.bus.on('normalized:trade', (trade) => {
+      this._tradeDebugCount++;
+      if (this._tradeDebugCount <= 5 || this._tradeDebugCount % 200 === 0) {
+        this.log.info(`[DEBUG] normalized:trade recebido #${this._tradeDebugCount} symbol=${trade.symbol} side=${trade.side} qty=${trade.qty}`);
+      }
       if (trade.symbol?.startsWith('WDO')) {
         this._updateVAP(trade);
         this._updateAgressorRatio(trade);
