@@ -105,11 +105,21 @@ class TAssetID(ctypes.Structure):
 
 class TConnectorAssetIdentifier(ctypes.Structure):
     """Struct moderna usada por SubscribePriceDepth, GetPriceGroup,
-    GetPriceDepthSideCount, GetTheoreticalValues e pelo callback de PriceDepth."""
+    GetPriceDepthSideCount, GetTheoreticalValues e pelo callback de PriceDepth.
+
+    IMPORTANTE: Ticker e Exchange sao ponteiros (c_wchar_p), NAO arrays fixos.
+    A documentacao web mostra como array fixo (c_wchar*25), mas isso causa
+    Access Violation dentro de ConnectorUtilsU.GetAssetID (confirmado via
+    Erro.log da propria DLL: 'Read of address ...' em System.@PWCharLen,
+    chamado a partir de System.@UStrFromPWChar). A funcao interna da DLL
+    espera ler uma string Delphi via ponteiro, nao copiar de um buffer
+    embutido na struct. Usar c_wchar_p resolve o Access Violation e faz
+    SubscribePriceDepth retornar 0 (sucesso) em vez de -2147483647.
+    """
     _fields_ = [
         ("Version",  ctypes.c_ubyte),
-        ("Ticker",   ctypes.c_wchar * 25),
-        ("Exchange", ctypes.c_wchar * 4),
+        ("Ticker",   ctypes.c_wchar_p),
+        ("Exchange", ctypes.c_wchar_p),
         ("FeedType", ctypes.c_int),
     ]
 
@@ -451,10 +461,17 @@ def subscribe(dll):
                  f"({'OK' if ret_ticker == 0 else 'ERRO'})")
 
         # SubscribePriceDepth — livro de profundidade agregado por nivel
+        # Manter referencia das strings vivas — c_wchar_p nao copia a string,
+        # so guarda o ponteiro. Se a string Python for coletada pelo GC antes
+        # da DLL usar, vira ponteiro invalido (mesmo bug do Access Violation).
+        _ticker_str = ctypes.create_unicode_buffer(sym)
+        _exchange_str = ctypes.create_unicode_buffer(EXCHANGE_BMF)
+        _cb_refs[f"ticker_{sym}"] = _ticker_str
+        _cb_refs[f"exchange_{sym}"] = _exchange_str
         asset = TConnectorAssetIdentifier()
         asset.Version  = 0
-        asset.Ticker   = sym
-        asset.Exchange = EXCHANGE_BMF
+        asset.Ticker   = ctypes.cast(_ticker_str, ctypes.c_wchar_p)
+        asset.Exchange = ctypes.cast(_exchange_str, ctypes.c_wchar_p)
         asset.FeedType = 0
         ret_depth = dll.SubscribePriceDepth(ctypes.byref(asset))
         log.info(f"SubscribePriceDepth [{sym}] = {ret_depth} "
