@@ -2201,7 +2201,7 @@ export function CMERangePanel({ macro }) {
     <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:6, padding:'10px 12px' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
         <span style={{ fontSize:10, color:'rgba(255,255,255,0.4)', letterSpacing:1, fontWeight:600 }}>CME · RANGE MADRUGADA</span>
-        {range && <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>{range.candles} candles</span>}
+        {range && <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>{range.source === 'yahoo_6L=F' ? 'CME 6L real' : (range.candles ? range.candles + ' candles' : '')}</span>}
       </div>
 
       {!range ? (
