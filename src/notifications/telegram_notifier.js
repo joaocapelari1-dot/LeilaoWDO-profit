@@ -24,10 +24,15 @@ class TelegramNotifier {
   }
 
   _listen() {
-    this.bus.on('risk:signal',      (s) => this._onSinal(s));
-    this.bus.on('order:opened',     (o) => this._onOrdem(o));
-    this.bus.on('order:closed',     (o) => this._onFechamento(o));
-    this.bus.on('position:limit_hit', () => this._onLimite());
+    // CRITICO: nomes corrigidos conforme eventos REAIS emitidos pelo
+    // risk_engine.js e execution_engine.js. Os nomes antigos (risk:signal,
+    // order:opened/closed, position:limit_hit) nunca existiram no sistema —
+    // Telegram so funcionava para alerta de ghost feed, nunca avisava
+    // sinais aprovados, ordens abertas/fechadas ou limite de perda atingido.
+    this.bus.on('risk:approved',    (s) => this._onSinal(s));
+    this.bus.on('execution:fill',   (o) => this._onOrdem(o));
+    this.bus.on('execution:close',  (o) => this._onFechamento(o));
+    this.bus.on('risk:rejected',    (r) => { if (r?.reason === 'daily_loss_limit') this._onLimite(); });
     this.bus.on('mdil:ghost_feed',  (d) => this._onGhost(d));
   }
 
