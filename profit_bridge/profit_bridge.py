@@ -29,6 +29,10 @@ ACTIVATION_KEY = os.getenv("PROFIT_ACTIVATION_KEY", "")
 USERNAME       = os.getenv("PROFIT_USERNAME", "")
 PASSWORD       = os.getenv("PROFIT_PASSWORD", "")
 DLL_PATH       = os.getenv("PROFIT_DLL_PATH", r"C:\ProfitBridge\Win64\ProfitDLL.dll")
+# Documentacao Nelogica usa ticker generico (WDOFUT) para PriceDepth.
+# Tickers especificos com vencimento (WDON26) podem nao funcionar com SubscribePriceDepth.
+# Mantemos SubscribeTicker com o vencimento especifico (trades/tiny_book funcionam normalmente)
+# mas testamos PriceDepth tambem com o ticker generico como fallback.
 SYMBOLS_RAW    = os.getenv("SYMBOLS", "WDON26,DOLN26")
 SYMBOLS        = [s.strip() for s in SYMBOLS_RAW.split(",")]
 RAILWAY_URL    = os.getenv("RAILWAY_WS_URL", "wss://leilaowdo-profit-production.up.railway.app/bridge")
@@ -290,6 +294,7 @@ def subscribe(dll):
         log.info(f"SubscribeTicker [{sym}] = {t} ({'OK' if t == 0 else 'ERRO'})")
 
         # SubscribePriceDepth: livro de profundidade
+        # Tenta primeiro com o ticker especifico (com vencimento)
         asset = TConnectorAssetIdentifier()
         asset.Version  = 0
         asset.Ticker   = sym
@@ -297,9 +302,22 @@ def subscribe(dll):
         asset.FeedType = 0
         pd = dll.SubscribePriceDepth(ctypes.byref(asset))
         if pd == 0:
-            log.info(f"SubscribePriceDepth [{sym}] = OK")
+            log.info(f"SubscribePriceDepth [{sym}] = OK (ticker especifico)")
         else:
-            log.warning(f"SubscribePriceDepth [{sym}] = {pd} — usando TinyBook como fallback")
+            log.warning(f"SubscribePriceDepth [{sym}] = {pd} (ticker especifico) — tentando ticker generico")
+            # Fallback: tentar com ticker generico conforme exemplo oficial Nelogica (WDOFUT/DOLFUT)
+            generic = "WDOFUT" if sym.startswith("WDO") else ("DOLFUT" if sym.startswith("DOL") else sym)
+            if generic != sym:
+                asset2 = TConnectorAssetIdentifier()
+                asset2.Version  = 0
+                asset2.Ticker   = generic
+                asset2.Exchange = EXCHANGE_BMF
+                asset2.FeedType = 0
+                pd2 = dll.SubscribePriceDepth(ctypes.byref(asset2))
+                if pd2 == 0:
+                    log.info(f"SubscribePriceDepth [{generic}] = OK (ticker generico)")
+                else:
+                    log.warning(f"SubscribePriceDepth [{generic}] = {pd2} (ticker generico) — usando TinyBook como fallback")
 
 def dll_thread_fn(dll):
     try:
