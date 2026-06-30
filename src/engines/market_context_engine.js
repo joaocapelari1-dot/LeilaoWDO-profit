@@ -43,6 +43,12 @@ class MarketContextEngine {
     bus.on('feature:wdo', (f) => {
       if (f.last) this.lastPrice = f.last;
     });
+
+    // CRITICO: this._macroSnap era lido em _fetchGap() mas NUNCA atribuido
+    // em lugar nenhum do arquivo — gapData nunca populava, painel ficava
+    // preso em "Calculando gap e calendario..." para sempre.
+    this._macroSnap = null;
+    bus.on('macro:update', (snap) => { this._macroSnap = snap; });
   }
 
   async start() {
