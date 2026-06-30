@@ -23,7 +23,7 @@ export function useWDOSocket(token) {
   const [adaptive, setAdaptive]       = useState(null)
   const [esgotamento, setEsgotamento] = useState(null)
   const [macro, setMacro]             = useState(null)
-  const [symbols, setSymbols]         = useState({ wdo: 'WDON26', dol: 'DOLQ26' })
+  const [symbols, setSymbols]         = useState({ wdo: 'WDOQ26', dol: 'DOLQ26' })
   const [mktFeatures, setMktFeatures] = useState(null)
   const [histTrades, setHistTrades]   = useState([])
   const [historico, setHistorico]     = useState([])
