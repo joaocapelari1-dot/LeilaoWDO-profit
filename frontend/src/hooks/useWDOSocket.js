@@ -17,6 +17,7 @@ export function useWDOSocket(token) {
   const [fills, setFills]             = useState([])
   const [tickHistory, setTickHistory] = useState([])
   const [tape, setTape]               = useState([])
+  const [tapeDol, setTapeDol]         = useState([])
   const [dolFeatures, setDolFeatures] = useState(null)
   const [confluence, setConfluence]   = useState(null)
   const [marketContext, setContext]    = useState({})
@@ -74,7 +75,16 @@ export function useWDOSocket(token) {
               setTickHistory(prev => { const n = [...prev.slice(-99), { ...msg.data, t: Date.now() }]; return n; })
               if (msg.data.trade_vol > 0) {
                 const side = msg.data.last >= msg.data.ask ? 'buy' : 'sell'
-                setTape(prev => [{ ts: Date.now(), price: msg.data.last, vol: msg.data.trade_vol, side }, ...prev].slice(0, 100))
+                setTape(prev => [{ ts: Date.now(), price: msg.data.last, vol: msg.data.trade_vol, side }, ...prev].slice(0, 50))
+              }
+              break
+            case 'tick_dol':
+              if (msg.data) {
+                setDolTick(msg.data)
+                if (msg.data.trade_vol > 0) {
+                  const sideDol = msg.data.last >= msg.data.ask ? 'buy' : 'sell'
+                  setTapeDol(prev => [{ ts: Date.now(), price: msg.data.last, vol: msg.data.trade_vol, side: sideDol }, ...prev].slice(0, 50))
+                }
               }
               break
             case 'book':          setBook(msg.data);     break
@@ -83,7 +93,6 @@ export function useWDOSocket(token) {
             case 'mdil_status':   if(msg.data) setMdilStatus(prev => ({...prev, [msg.data.sym]: msg.data})); break
             case 'mdil_ghost':    if(msg.data) setMdilStatus(prev => ({...prev, [msg.data.sym]: {...(prev[msg.data.sym]||{}), ghost:true}})); break
             case 'mdil_real':     if(msg.data) setMdilStatus(prev => ({...prev, [msg.data.sym]: {...(prev[msg.data.sym]||{}), ghost:false}})); break
-            case 'tick_dol':      if(msg.data) setDolTick(msg.data); break
             case 'context_gap':
               setContext(prev => ({ ...prev, gap: msg.data })); break
             case 'context_calendar':
@@ -135,5 +144,5 @@ export function useWDOSocket(token) {
   // Merge historical trades + live ticks for chart
   const fullTickHistory = [...histTrades, ...(tickHistory || [])]
 
-  return { connected, tick, book, bookDol, dolTick, mdilStatus, features, mktFeatures, auctionState, signal, aiAnalysis, riskEvent, fills, tickHistory: fullTickHistory, tape, windowState, snapshots, dolFeatures, confluence, marketContext, adaptive: adaptive ? { ...adaptive, historico, journal, balanco } : { historico, journal, balanco }, esgotamento, macro, symbols }
+  return { connected, tick, book, bookDol, dolTick, mdilStatus, features, mktFeatures, auctionState, signal, aiAnalysis, riskEvent, fills, tickHistory: fullTickHistory, tape, tapeDol, windowState, snapshots, dolFeatures, confluence, marketContext, adaptive: adaptive ? { ...adaptive, historico, journal, balanco } : { historico, journal, balanco }, esgotamento, macro, symbols }
 }
