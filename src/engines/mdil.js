@@ -97,10 +97,15 @@ class MarketDataIntegrityLayer {
     s.ghostScore = score;
     const isGhost = score >= GHOST_THRESHOLD;
 
-    if (isGhost && !wasGhost) {
-      this.log.warn(`[MDIL] GHOST FEED DETECTED — ${sym} (score=${score})`);
+    // So emite ghost_feed UMA VEZ por sessao por simbolo (evita spam de Telegram).
+    // Sem PriceDepth/OfferBook real, o sistema permanece em modo TinyBook
+    // indefinidamente — isso e esperado, nao um problema transitorio a cada minuto.
+    if (isGhost && !wasGhost && !s.ghostAlertSent) {
+      s.ghostAlertSent = true;
+      this.log.warn(`[MDIL] GHOST FEED DETECTED — ${sym} (score=${score}) — TinyBook ativo, alerta unico`);
       if (this.bus) this.bus.emit('mdil:ghost_feed', { sym, score });
     } else if (!isGhost && wasGhost) {
+      s.ghostAlertSent = false;
       this.log.info(`[MDIL] FEED RECOVERED — ${sym}`);
       if (this.bus) this.bus.emit('mdil:feed_recovered', { sym });
     }
