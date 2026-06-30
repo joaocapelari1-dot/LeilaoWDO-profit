@@ -105,8 +105,18 @@ class FeatureEngine {
 
   _classifyAggressor(s, tick) {
     if (!tick.trade_vol) return;
-    if (tick.last >= tick.ask) { s.buyVol += tick.trade_vol; s.flowDelta += tick.trade_vol; }
-    else if (tick.last <= tick.bid) { s.sellVol += tick.trade_vol; s.flowDelta -= tick.trade_vol; }
+    // CRITICO: bid/ask agora vem do PriceDepth real (atualizado em
+    // rajadas a cada ~150ms), enquanto trade_vol vem de cada negocio
+    // individual. Quando last === bid exatamente (muito comum com
+    // tick de 0.5), a comparacao >= sempre cai no else (sellVol),
+    // mesmo sendo um trade no ask. Usamos o ponto medio como criterio:
+    // last mais proximo do ask = compra, mais proximo do bid = venda.
+    if (!tick.bid || !tick.ask) return;
+    const mid = (tick.bid + tick.ask) / 2;
+    if (tick.last > mid) { s.buyVol += tick.trade_vol; s.flowDelta += tick.trade_vol; }
+    else if (tick.last < mid) { s.sellVol += tick.trade_vol; s.flowDelta -= tick.trade_vol; }
+    else if (tick.last >= tick.ask) { s.buyVol += tick.trade_vol; s.flowDelta += tick.trade_vol; }
+    else { s.sellVol += tick.trade_vol; s.flowDelta -= tick.trade_vol; }
   }
 
   _updateAuction(s, tick) {
