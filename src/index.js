@@ -212,6 +212,7 @@ if (isMainThread) {
     'market:book:wdo', 'market:book:dol',
     'signal:approved', 'mdil:status', 'mdil:ghost_feed', 'mdil:real_feed',
     'risk:approved', 'risk:rejected', 'ai:analise',
+    'risk:snapshot', 'risk:window_open', 'risk:window_aborted',
     'iceberg:detected', 'esgotamento:detectado', 'fill',
   ];
   if (parentPort) {
