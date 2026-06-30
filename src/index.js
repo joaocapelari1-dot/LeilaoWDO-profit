@@ -219,6 +219,26 @@ if (isMainThread) {
 
   bus.on('risk:approved', d => execution.execute(d));
 
+  // CRITICO: repassar eventos do bus do WORKER para o MAIN THREAD via postMessage
+  // Sem isso, broadcasts como book:update, feature:wdo, auction:state nunca chegam
+  // ao server.js (que roda no MAIN THREAD) e o frontend nao recebe nada.
+  const FORWARD_TO_MAIN = [
+    'normalized:tick', 'book:update', 'book:update:dol',
+    'feature:wdo', 'feature:dol', 'market:features',
+    'market:tick:dol', 'auction:state', 'market:ticker_state',
+    'market:book:wdo', 'market:book:dol',
+    'signal:approved', 'mdil:status', 'mdil:ghost_feed', 'mdil:real_feed',
+    'risk:approved', 'risk:rejected', 'ai:analise',
+    'iceberg:detected', 'esgotamento:detectado', 'fill',
+  ];
+  if (parentPort) {
+    FORWARD_TO_MAIN.forEach(evt => {
+      bus.on(evt, (data) => {
+        try { parentPort.postMessage({ type: evt, data }); } catch {}
+      });
+    });
+  }
+
   adapter.start();
   adaptive.start();
 
