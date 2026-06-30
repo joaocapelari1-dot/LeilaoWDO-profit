@@ -28,6 +28,22 @@ function createServer(bus, engines = {}) {
   // REST
   app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
+  // Rota de diagnostico: injeta um book de teste direto no bus do MAIN THREAD
+  // Se o frontend receber isso, o caminho bus->broadcast->frontend esta OK
+  // Se nao receber, o problema e exclusivamente no worker_threads
+  app.get('/api/test-broadcast', (req, res) => {
+    const fakeBook = {
+      symbol: 'WDON26',
+      bids: Array.from({length:10},(_,i)=>({price: 5170 - i*0.5, qty: 10})),
+      asks: Array.from({length:10},(_,i)=>({price: 5170.5 + i*0.5, qty: 10})),
+      best_bid: 5170, best_ask: 5170.5,
+      timestamp: Date.now(), source: 'test'
+    };
+    bus.emit('book:update', fakeBook);
+    bus.emit('auction:state', { symbol: 'WDON26', state: 'TEST', in_auction: true, timestamp: Date.now() });
+    res.json({ ok: true, sent: fakeBook });
+  });
+
   app.get('/api/status', (req, res) => {
     res.json({
       risk:      engines?.risk?.getStatus?.()      || {},
