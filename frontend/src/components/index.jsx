@@ -671,7 +671,11 @@ export function SuperDOM({ book, features, mdilStatus, levels = 40 }) {
   const bids     = book?.bids || []
   const asks     = book?.asks || []
   const icebergs = features?.icebergs || []
-  const lastPrice = features?.last || book?.best_bid || 0
+  // Prioriza o centro real do book (best_bid/best_ask) sobre features.last,
+  // que pode ter lag e desalinhar a janela de precos renderizada, fazendo
+  // o BID sumir da tela mesmo com dados corretos chegando do backend.
+  const bookCenter = (book?.best_bid && book?.best_ask) ? (book.best_bid + book.best_ask) / 2 : 0
+  const lastPrice = bookCenter || features?.last || book?.best_bid || 0
 
   const bidMap = {}
   bids.forEach(b => { bidMap[Math.round(b.price * 100)] = b.qty })
