@@ -556,25 +556,31 @@ async def railway_loop():
                         raise ConnectionError("Watchdog: conexao zumbi detectada")
 
                     batch = []
+                    # Debounce: varias notificacoes de PriceDepth chegam em rajada
+                    # (cada nivel alterado dispara uma notificacao). Em vez de reler
+                    # o livro inteiro a cada notificacao individual (causa flicker
+                    # no frontend por reenviar snapshot dezenas de vezes/segundo),
+                    # acumula os tickers que mudaram e le o livro UMA VEZ por ciclo.
+                    depth_tickers_dirty = set()
                     try:
                         for _ in range(100):
                             msg = event_queue.get_nowait()
 
                             if msg.get("type") == "_price_depth_notify":
-                                # Leitura do livro acontece fora do callback,
-                                # disparada apenas nos tipos de atualizacao relevantes.
-                                # utAdd=0 utEdit=1 utFullBook=4 utFlush=6
                                 update_type = msg.get("update_type", -1)
-                                if update_type in (0, 1, 4, 6) and _dll_ref is not None:
-                                    ticker = msg["ticker"]
-                                    dll = _dll_ref
-                                    asyncio.get_event_loop().run_in_executor(
-                                        None, lambda t=ticker, d=dll: _read_price_depth(d, t)
-                                    )
+                                if update_type in (0, 1, 4, 6):
+                                    depth_tickers_dirty.add(msg["ticker"])
                             else:
                                 batch.append(msg)
                     except queue.Empty:
                         pass
+
+                    if depth_tickers_dirty and _dll_ref is not None:
+                        dll = _dll_ref
+                        for ticker in depth_tickers_dirty:
+                            asyncio.get_event_loop().run_in_executor(
+                                None, lambda t=ticker, d=dll: _read_price_depth(d, t)
+                            )
 
                     if batch:
                         payload = batch if len(batch) > 1 else batch[0]
