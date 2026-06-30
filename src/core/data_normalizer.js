@@ -36,12 +36,16 @@ class DataNormalizer {
   processTrade(raw) {
     try {
       if (!raw || !raw.price || !raw.qty) return;
+      // CRITICO: market:trade:wdo/dol emite o campo "agressor" (buy/sell),
+      // nao "side". processTrade lia raw.side (sempre undefined), fazendo
+      // _updateAgressorRatio nunca classificar nenhum trade como buy/sell —
+      // Agressor Ratio ficava travado em 0%/100% (vendedora) permanentemente.
       this.bus.emit('normalized:trade', {
         symbol:    raw.symbol,
         timestamp: raw.timestamp || Date.now(),
         price:     raw.price,
         qty:       raw.qty,
-        side:      raw.side,
+        side:      raw.side || raw.agressor,
         agressor:  raw.agressor,
         hora:      raw.hora,
       });
