@@ -127,24 +127,19 @@ class ProfitClient {
     const ref = isWDO ? this.lastWDO : this.lastDOL;
     const TICK = 0.5;
     const tinyPrice = msg.price || 0;
+    if (!tinyPrice) { console.log('[TINY_BOOK]', sym, 'SEM PRECO — msg:', JSON.stringify(msg)); return; }
     // Atualizar bid/ask de referencia com o que vier do TinyBook
     if (msg.side === 'BUY'  && tinyPrice) ref.bid = tinyPrice;
     if (msg.side === 'SELL' && tinyPrice) ref.ask = tinyPrice;
     const bid = ref.bid || 0;
     const ask = ref.ask || 0;
-    // Prioridade: bid/ask reais > tinyPrice bruto > estimativa via TICK
-    let effectiveBid = bid || (ask ? ask - TICK : 0) || tinyPrice || 0;
-    let effectiveAsk = ask || (bid ? bid + TICK : 0) || tinyPrice || 0;
-    // Garantir spread minimo se bid==ask
-    if (effectiveBid && effectiveAsk && effectiveBid === effectiveAsk) {
-      effectiveAsk = effectiveBid + TICK;
-    }
-    // Fallback final: se nada disponivel mas tinyPrice existe, usar direto
-    if (!effectiveBid && !effectiveAsk && tinyPrice) {
-      effectiveBid = tinyPrice - TICK;
-      effectiveAsk = tinyPrice + TICK;
-    }
-    if(!effectiveBid || !effectiveAsk) return;
+    // SEMPRE garantir os dois lados a partir do tinyPrice — nunca depender
+    // apenas de eventos anteriores que podem nao ter chegado ainda
+    let effectiveBid = bid || tinyPrice - TICK;
+    let effectiveAsk = ask || tinyPrice + TICK;
+    if (effectiveBid >= effectiveAsk) effectiveAsk = effectiveBid + TICK;
+    if (!effectiveBid || effectiveBid <= 0) effectiveBid = tinyPrice - TICK;
+    if (!effectiveAsk || effectiveAsk <= 0) effectiveAsk = tinyPrice + TICK;
     const LEVELS = 40;
     const bids = Array.from({length:LEVELS},(_,i)=>({
       price: Math.round((effectiveBid - i*TICK)*100)/100,
