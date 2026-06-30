@@ -41,7 +41,7 @@ class ProfitClient {
     this.mdil.onTrade(msg.ticker || msg.symbol || '');
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
-    const agressor=msg.aggressor==='BUY'?'buy':msg.aggressor==='SELL'?'sell':'balanced';
+    const agressor=msg.aggressor==='buyer'?'buy':msg.aggressor==='seller'?'sell':'balanced';
     const tick={symbol:sym,timestamp:msg.timestamp||Date.now(),last:msg.price||0,
       bid:isWDO?(this.lastWDO.bid||0):(this.lastDOL.bid||0),
       ask:isWDO?(this.lastWDO.ask||0):(this.lastDOL.ask||0),
