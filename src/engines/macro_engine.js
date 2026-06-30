@@ -170,7 +170,7 @@ class MacroEngine {
       const raw = await this._fetchTwelveDataAll();
 
       this.prevSnap = { ...this.snapshot };
-      this.snapshot = this._normalizeMulti(raw);
+      this.snapshot = await this._normalizeMulti(raw);
       this.snapshot.fetchedAt  = Date.now();
       this.snapshot.fetchCount = ++this.fetchCount;
       this.snapshot.mode       = this.mode;
@@ -300,7 +300,7 @@ class MacroEngine {
   }
 
   // ── Normalização Multi-Source ───────────────────────────
-  _normalizeMulti(raw) {
+  async _normalizeMulti(raw) {
     const mk = (r) => r ? { price: r.price, prevClose: r.prevClose || r.price, change: r.change || 0, changePct: r.changePct || 0 } : null;
     const sp500  = mk(raw.SPY);
     const vix    = mk(raw.VIXY);
@@ -310,7 +310,7 @@ class MacroEngine {
     const usdbrl = mk(raw.USDBRL);
     const tnx    = mk(raw.TLT);
     const cip    = this._calcCIP(usdbrl, tnx);
-    const cme    = this._calcCMESpread(usdbrl);
+    const cme    = await this._calcCMESpread(usdbrl);
     const bias   = this._calcMacroBias({ sp500, nasdaq: null, vix, dxy, usdbrl, cip, cme });
     return {
       sp500, vix, dxy, oilWTI, usdbrl, ibov, gold: null,
