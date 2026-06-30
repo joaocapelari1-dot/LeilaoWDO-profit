@@ -125,16 +125,25 @@ class ProfitClient {
     this._tinyCounts[sym]=(this._tinyCounts[sym]||0)+1;
     if(this._tinyCounts[sym]===1||this._tinyCounts[sym]%200===0) console.log('[TINY_BOOK]',sym,'SINTETICO (sem OfferBook real) #'+this._tinyCounts[sym]);
     const ref = isWDO ? this.lastWDO : this.lastDOL;
+    const TICK = 0.5;
+    const tinyPrice = msg.price || 0;
+    // Atualizar bid/ask de referencia com o que vier do TinyBook
+    if (msg.side === 'BUY'  && tinyPrice) ref.bid = tinyPrice;
+    if (msg.side === 'SELL' && tinyPrice) ref.ask = tinyPrice;
     const bid = ref.bid || 0;
     const ask = ref.ask || 0;
-    const TICK = 0.5;
-    // Usar preco do proprio TinyBook como fallback quando bid/ask nao disponiveis
-    const tinyPrice = msg.price || 0;
-    let effectiveBid = bid || (ask ? ask - TICK : 0) || (tinyPrice ? tinyPrice - TICK : 0);
-    let effectiveAsk = ask || (bid ? bid + TICK : 0) || (tinyPrice ? tinyPrice + TICK : 0);
-    // Se o TinyBook veio com side, usar o preco direto
-    if (msg.side === 'BUY'  && tinyPrice) { effectiveBid = tinyPrice; effectiveAsk = effectiveAsk || tinyPrice + TICK; }
-    if (msg.side === 'SELL' && tinyPrice) { effectiveAsk = tinyPrice; effectiveBid = effectiveBid || tinyPrice - TICK; }
+    // Prioridade: bid/ask reais > tinyPrice bruto > estimativa via TICK
+    let effectiveBid = bid || (ask ? ask - TICK : 0) || tinyPrice || 0;
+    let effectiveAsk = ask || (bid ? bid + TICK : 0) || tinyPrice || 0;
+    // Garantir spread minimo se bid==ask
+    if (effectiveBid && effectiveAsk && effectiveBid === effectiveAsk) {
+      effectiveAsk = effectiveBid + TICK;
+    }
+    // Fallback final: se nada disponivel mas tinyPrice existe, usar direto
+    if (!effectiveBid && !effectiveAsk && tinyPrice) {
+      effectiveBid = tinyPrice - TICK;
+      effectiveAsk = tinyPrice + TICK;
+    }
     if(!effectiveBid || !effectiveAsk) return;
     const LEVELS = 40;
     const bids = Array.from({length:LEVELS},(_,i)=>({
