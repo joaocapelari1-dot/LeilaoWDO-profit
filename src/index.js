@@ -151,6 +151,12 @@ if (isMainThread) {
   const normalizer = new DataNormalizer(bus);
   const features = new FeatureEngine(bus);
   const mktFeatures = new MarketFeaturesEngine(bus);
+
+  // CRITICO: FeatureEngine.onTick() nunca era chamado automaticamente —
+  // o engine nao se auto-conecta ao bus internamente. Sem isso, feature:wdo
+  // e feature:dol nunca disparavam, deixando o ClaudeAIEngine (que depende
+  // exclusivamente desses eventos) sem dados de VWAP, agressor, iceberg etc.
+  bus.on('normalized:tick', (tick) => { try { features.onTick(tick); } catch (e) { log.error('features.onTick:', e.message); } });
   const mmDetector = new MarketMakerDetector(bus);
   const telegram = new TelegramNotifier(bus);
   const adaptive = new AdaptiveLogEngine(bus);
