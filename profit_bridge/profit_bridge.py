@@ -335,8 +335,10 @@ def _read_price_depth(dll, ticker, max_levels=40):
         asset.FeedType = 0
 
         bids, asks = [], []
+        _counts_log = {}
         for side, bucket in [(0, bids), (1, asks)]:
             total = dll.GetPriceDepthSideCount(ctypes.byref(asset), side)
+            _counts_log['BID' if side==0 else 'ASK'] = total
             for pos in range(min(max_levels, total)):
                 group = TConnectorPriceGroup()
                 group.Version = 0
@@ -363,6 +365,13 @@ def _read_price_depth(dll, ticker, max_levels=40):
                         "count": group.Count,
                         "is_theoric": is_theoric,
                     })
+
+        if not hasattr(_read_price_depth, '_log_count'):
+            _read_price_depth._log_count = {}
+        _lc = _read_price_depth._log_count
+        _lc[ticker] = _lc.get(ticker, 0) + 1
+        if _lc[ticker] <= 10 or _lc[ticker] % 200 == 0:
+            log.info(f"[DEPTH_COUNT] {ticker} counts={_counts_log} bids_lidos={len(bids)} asks_lidos={len(asks)} #{_lc[ticker]}")
 
         if bids or asks:
             enqueue({
