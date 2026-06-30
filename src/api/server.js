@@ -150,9 +150,22 @@ function createServer(bus, engines = {}) {
 
   // ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ Broadcasts para o frontend ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
   bus.on('normalized:tick',         d => broadcast('tick',           d));
-  bus.on('book:update',             d => broadcast('book',           d));
-  bus.on('market:book:wdo',          d => broadcast('book',           d));
-  bus.on('market:book:dol',          d => broadcast('book_dol',       d));
+  // Throttle: PriceDepth real pode chegar em rajadas rapidas (varios
+  // niveis mudando quase simultaneamente). Sem throttle, o frontend recebe
+  // dezenas de snapshots completos por segundo e a tabela "pisca". Limitamos
+  // a no maximo 1 broadcast a cada 150ms por book (≈6-7/s), suficiente para
+  // parecer tempo real sem sobrecarregar a renderizacao da UI.
+  const _bookThrottle = { wdo: 0, dol: 0 };
+  const BOOK_THROTTLE_MS = 150;
+  function throttledBroadcast(key, type, data) {
+    const now = Date.now();
+    if (now - _bookThrottle[key] < BOOK_THROTTLE_MS) return;
+    _bookThrottle[key] = now;
+    broadcast(type, data);
+  }
+  bus.on('book:update',             d => throttledBroadcast('wdo', 'book',     d));
+  bus.on('market:book:wdo',          d => throttledBroadcast('wdo', 'book',     d));
+  bus.on('market:book:dol',          d => throttledBroadcast('dol', 'book_dol', d));
   bus.on('book:update:dol',         d => broadcast('book_dol',       d));
   bus.on('feature:wdo',             d => broadcast('features',       d));
   bus.on('feature:dol',             d => broadcast('features_dol',   d));
