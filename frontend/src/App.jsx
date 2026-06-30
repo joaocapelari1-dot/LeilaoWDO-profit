@@ -148,8 +148,6 @@ export default function App() {
             <div style={{ flex:1, display:'flex', flexDirection:'column', gap:1, overflowY:'auto' }}>
               <PricePanel      tick={socket.tick} features={socket.features} />
               <AuctionPanel    auctionState={socket.auctionState} features={socket.features} signal={socket.signal} />
-              <ConfluencePanel confluence={socket.confluence} />
-              <DecisionWindow  windowState={socket.windowState} snapshots={socket.snapshots} />
               <FlowPanel       features={socket.features} />
             </div>
             <MercadoMundialPanel macro={socket.macro} tick={socket.tick} dolFeatures={socket.dolFeatures} />
@@ -172,11 +170,25 @@ export default function App() {
             </div>
           </div>
 
-          {/* Coluna direita → SuperDOMs */}
+          {/* Coluna direita → Times&Trades + janelas de leilao embaixo de cada um */}
           <div style={{ display:'flex', flexDirection:'column', gap:1, overflow:'hidden', height:'100%' }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, flex:1, overflow:'hidden' }}>
-              <TimesAndTrades tape={socket.tape}    symbol="WDOQ26" mdilStatus={socket.mdilStatus?.['WDOQ26']} />
-              <TimesAndTrades tape={socket.tapeDol} symbol="DOLQ26" mdilStatus={socket.mdilStatus?.['DOLQ26']} />
+              <div style={{ display:'flex', flexDirection:'column', gap:1, overflow:'hidden' }}>
+                <div style={{ flex:1, overflow:'hidden' }}>
+                  <TimesAndTrades tape={socket.tape} symbol="WDOQ26" mdilStatus={socket.mdilStatus?.['WDOQ26']} />
+                </div>
+                <div style={{ flex:'0 0 auto', maxHeight:'40%', overflowY:'auto' }}>
+                  <ConfluencePanel confluence={socket.confluence} />
+                </div>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:1, overflow:'hidden' }}>
+                <div style={{ flex:1, overflow:'hidden' }}>
+                  <TimesAndTrades tape={socket.tapeDol} symbol="DOLQ26" mdilStatus={socket.mdilStatus?.['DOLQ26']} />
+                </div>
+                <div style={{ flex:'0 0 auto', maxHeight:'40%', overflowY:'auto' }}>
+                  <DecisionWindow windowState={socket.windowState} snapshots={socket.snapshots} />
+                </div>
+              </div>
             </div>
           </div>
 
