@@ -76,7 +76,7 @@ class MacroEngine {
       // Buscar range CME madrugada às 8h45
       const hNow = brt.getUTCHours(); const mNow = brt.getUTCMinutes();
       if (hNow === 8 && mNow >= 44 && mNow <= 50) {
-        this._fetchCMERange().then(range => {
+        this._fetchCMERangeReal().then(range => {
           if (range) {
             this.snapshot.cmeRange = range;
             this.log.info('CME Range madrugada: ' + range.min + '-' + range.max + ' (' + range.range + ' pts)');
@@ -486,20 +486,24 @@ class MacroEngine {
     return { max: cme.dayHigh.toFixed(4), min: cme.dayLow.toFixed(4), range, source: 'yahoo_6L=F' };
   }
 
-  _calcCMESpread(usdbrl) {
+  async _calcCMESpread(usdbrl) {
     try {
       const spot = usdbrl?.price;
-      const prevClose = usdbrl?.prevClose;
-      if (!spot || !prevClose) return null;
-      const cmeRef = prevClose;
+      if (!spot) return null;
+      const cme = await this._fetchCME6L();
+      // Fallback: se Yahoo falhar, usa prevClose (comportamento antigo) mas
+      // marca a fonte para o frontend saber que e aproximado, nao CME real.
+      const cmeRef = cme?.spotRef || usdbrl?.prevClose;
+      if (!cmeRef) return null;
+      const fonte = cme?.spotRef ? 'CME 6L real' : 'aprox D-1';
       const desvio = Math.round((spot - cmeRef) * 10000) / 100;
       let score = 0, descricao = '';
-      if (desvio < -0.20)      { score = +2; descricao = `CME: spot ${Math.abs(desvio).toFixed(2)}¢ abaixo do CME`; }
-      else if (desvio < -0.10) { score = +1; descricao = `CME: spot levemente abaixo do CME`; }
-      else if (desvio > 0.20)  { score = -2; descricao = `CME: spot ${desvio.toFixed(2)}¢ acima do CME`; }
-      else if (desvio > 0.10)  { score = -1; descricao = `CME: spot levemente acima do CME`; }
-      else                     { score =  0; descricao = `CME: spot alinhado com CME`; }
-      return { spotRef: cmeRef?.toFixed(4), desvio, score, descricao };
+      if (desvio < -0.20)      { score = +2; descricao = `CME: spot ${Math.abs(desvio).toFixed(2)}¢ abaixo do CME (${fonte})`; }
+      else if (desvio < -0.10) { score = +1; descricao = `CME: spot levemente abaixo do CME (${fonte})`; }
+      else if (desvio > 0.20)  { score = -2; descricao = `CME: spot ${desvio.toFixed(2)}¢ acima do CME (${fonte})`; }
+      else if (desvio > 0.10)  { score = -1; descricao = `CME: spot levemente acima do CME (${fonte})`; }
+      else                     { score =  0; descricao = `CME: spot alinhado com CME (${fonte})`; }
+      return { spotRef: cmeRef?.toFixed(4), desvio, score, descricao, fonte };
     } catch { return null; }
   }
 
