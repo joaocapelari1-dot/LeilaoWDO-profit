@@ -295,11 +295,12 @@ def subscribe(dll):
 
     for sym in SYMBOLS:
         # SubscribeTicker: ativa trade + tinybook + daily de uma vez
+        # Documentacao: ret != 0 = NL_OK violado (codigo de erro Nelogica)
         t = dll.SubscribeTicker(sym, EXCHANGE_BMF)
-        log.info(f"SubscribeTicker [{sym}] = {t} ({'OK' if t == 0 else 'ERRO'})")
+        log.info(f"SubscribeTicker [{sym}] = {t} ({'OK' if t == 0 else 'ERRO codigo ' + str(t)})")
 
-        # SubscribePriceDepth: livro de profundidade
-        # Tenta primeiro com o ticker especifico (com vencimento)
+        # SubscribePriceDepth: livro de profundidade agregado por nivel
+        # Documentacao: https://ajuda.nelogica.com.br/.../Como-utilizar-o-Livro-de-Profundidade
         asset = TConnectorAssetIdentifier()
         asset.Version  = 0
         asset.Ticker   = sym
@@ -307,22 +308,20 @@ def subscribe(dll):
         asset.FeedType = 0
         pd = dll.SubscribePriceDepth(ctypes.byref(asset))
         if pd == 0:
-            log.info(f"SubscribePriceDepth [{sym}] = OK (ticker especifico)")
+            log.info(f"SubscribePriceDepth [{sym}] = OK")
         else:
-            log.warning(f"SubscribePriceDepth [{sym}] = {pd} (ticker especifico) — tentando ticker generico")
-            # Fallback: tentar com ticker generico conforme exemplo oficial Nelogica (WDOFUT/DOLFUT)
-            generic = "WDOFUT" if sym.startswith("WDO") else ("DOLFUT" if sym.startswith("DOL") else sym)
-            if generic != sym:
-                asset2 = TConnectorAssetIdentifier()
-                asset2.Version  = 0
-                asset2.Ticker   = generic
-                asset2.Exchange = EXCHANGE_BMF
-                asset2.FeedType = 0
-                pd2 = dll.SubscribePriceDepth(ctypes.byref(asset2))
-                if pd2 == 0:
-                    log.info(f"SubscribePriceDepth [{generic}] = OK (ticker generico)")
-                else:
-                    log.warning(f"SubscribePriceDepth [{generic}] = {pd2} (ticker generico) — usando TinyBook como fallback")
+            log.warning(f"SubscribePriceDepth [{sym}] = ERRO codigo {pd} — usando TinyBook como fallback")
+
+        # SubscribeOfferBook: livro de ofertas granular (oferta individual com agente)
+        # Documentacao: distinto do PriceDepth — callback TOfferBookCallbackV2 via SetOfferBookCallbackV2
+        try:
+            ob = dll.SubscribeOfferBook(sym, EXCHANGE_BMF)
+            if ob == 0:
+                log.info(f"SubscribeOfferBook [{sym}] = OK")
+            else:
+                log.warning(f"SubscribeOfferBook [{sym}] = ERRO codigo {ob}")
+        except Exception as e:
+            log.warning(f"SubscribeOfferBook [{sym}] indisponivel nesta DLL: {e}")
 
 def dll_thread_fn(dll):
     try:
