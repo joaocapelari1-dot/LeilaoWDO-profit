@@ -831,7 +831,7 @@ export function SuperDOMDOL({ dolFeatures, bookDol, dolTick, mdilStatus, levels 
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 10px', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
         <div>
           <span style={{ fontSize:9, color:C.gold, letterSpacing:1 }}>SUPER DOM · DOL CHEIO</span>
-          <span style={{ fontSize:8, color:C.muted, fontFamily:'monospace', marginLeft:8 }}>{book?.symbol || 'DOLN26'}</span>
+          <span style={{ fontSize:8, color:C.muted, fontFamily:'monospace', marginLeft:8 }}>{book?.symbol || 'DOLQ26'}</span>
         </div>
         <span style={{ fontSize:9, color:C.text, fontFamily:'monospace' }}>{lastPrice?.toFixed(2)}</span>
       </div>
