@@ -124,6 +124,16 @@ class ProfitClient {
       const key = Math.round(a.price*100);
       book.asks[key] = { price: a.price, qty: a.qty||0, agent: 0 };
     }
+    // CRITICO: atualizar bid/ask de referencia com o melhor preco do book
+    // real. Sem isso, _onTrade monta tick com bid/ask zerados (pois
+    // _onTinyBook nao gera mais book sintetico), e _validateTick no
+    // data_normalizer descarta o tick inteiro por falta de bid/ask —
+    // quebrando preco na tela e Times&Trades.
+    const bestBid = Math.max(0, ...(msg.bids||[]).map(b=>b.price), 0);
+    const bestAsk = (msg.asks||[]).length ? Math.min(...msg.asks.map(a=>a.price)) : 0;
+    const ref = isWDO ? this.lastWDO : this.lastDOL;
+    if (bestBid > 0) ref.bid = bestBid;
+    if (bestAsk > 0) ref.ask = bestAsk;
     if(!this._depthCounts) this._depthCounts={};
     this._depthCounts[sym]=(this._depthCounts[sym]||0)+1;
     if(this._depthCounts[sym]===1||this._depthCounts[sym]%500===0) console.log('[PRICE_DEPTH]',sym,'REAL — bids='+(msg.bids||[]).length,'asks='+(msg.asks||[]).length,'#'+this._depthCounts[sym]);
