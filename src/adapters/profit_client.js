@@ -34,6 +34,7 @@ class ProfitClient {
     this.bus.on('profit:ticker_state',(e)=>this._onTickerState(e));
     this.bus.on('profit:offer_book',(e)=>this._onOfferBook(e));
     this.bus.on('profit:tiny_book',(e)=>this._onTinyBook(e));
+    this.bus.on('profit:price_depth',(e)=>this._onPriceDepth(e));
     this.bus.on('profit:daily',(e)=>this._onDaily(e));
   }
   _onTrade(msg) {
@@ -105,6 +106,31 @@ class ProfitClient {
     const asks=Object.values(book.asks).sort((a,b)=>a.price-b.price).slice(0,20);
     if(isWDO)this.bus.emit('market:book:wdo',{symbol:sym,bids,asks,timestamp:Date.now(),source:'offer_book'});
     else this.bus.emit('market:book:dol',{symbol:sym,bids,asks,timestamp:Date.now(),source:'offer_book'});
+  }
+  _onPriceDepth(msg) {
+    // Dados reais de profundidade (Level 2) — popula bookWDO/bookDOL,
+    // o que automaticamente ativa a trava existente em _onTinyBook
+    // (bidCount>=5||askCount>=5 ignora o book sintetico).
+    const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
+    if(!isWDO&&!isDOL) return;
+    this.mdil.onOfferBook(sym, (msg.bids||[]).length + (msg.asks||[]).length);
+    const book = isWDO ? this.bookWDO : this.bookDOL;
+    book.bids = {}; book.asks = {};
+    for (const b of (msg.bids||[])) {
+      const key = Math.round(b.price*100);
+      book.bids[key] = { price: b.price, qty: b.qty||0, agent: 0 };
+    }
+    for (const a of (msg.asks||[])) {
+      const key = Math.round(a.price*100);
+      book.asks[key] = { price: a.price, qty: a.qty||0, agent: 0 };
+    }
+    if(!this._depthCounts) this._depthCounts={};
+    this._depthCounts[sym]=(this._depthCounts[sym]||0)+1;
+    if(this._depthCounts[sym]===1||this._depthCounts[sym]%500===0) console.log('[PRICE_DEPTH]',sym,'REAL — bids='+(msg.bids||[]).length,'asks='+(msg.asks||[]).length,'#'+this._depthCounts[sym]);
+    const bids=Object.values(book.bids).sort((a,b)=>b.price-a.price).slice(0,40);
+    const asks=Object.values(book.asks).sort((a,b)=>a.price-b.price).slice(0,40);
+    if(isWDO)this.bus.emit('market:book:wdo',{symbol:sym,bids,asks,timestamp:Date.now(),source:'price_depth'});
+    else this.bus.emit('market:book:dol',{symbol:sym,bids,asks,timestamp:Date.now(),source:'price_depth'});
   }
   _onTinyBook(msg) {
     // Notificar MDIL ÃÂ¢ÃÂÃÂ apenas TinyBook chegou
