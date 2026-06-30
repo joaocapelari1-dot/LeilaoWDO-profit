@@ -48,7 +48,7 @@ class ProfitClient {
       trade_vol:msg.quantity||0,auc_vol:0,
       theor_price:isWDO?this.theorWDO.price:this.theorDOL.price,
       theor_qty:isWDO?this.theorWDO.qty:this.theorDOL.qty,
-      surplus:0,surplus_side:null,buy_agent:msg.buy_agent||0,sell_agent:msg.sell_agent||0,
+      surplus:0,surplus_side:null,buy_agent:msg.buy_agent||0,sell_agent:msg.sell_agent||0,aggressor:agressor==='buy'?'buyer':agressor==='sell'?'seller':null,
       in_auction:this.auctionActive[sym]||false,phase:this.auctionActive[sym]?'auction':'continuous'};
     if(isWDO){this.lastWDO={...this.lastWDO,...tick};this.bus.emit('market:tick:wdo',{...this.lastWDO});this.bus.emit('market:trade:wdo',{symbol:sym,price:tick.last,qty:tick.trade_vol,agressor,timestamp:tick.timestamp});}
     else{this.lastDOL={...this.lastDOL,...tick};this.bus.emit('market:tick:dol',{...this.lastDOL});this.bus.emit('market:trade:dol',{symbol:sym,price:tick.last,qty:tick.trade_vol,agressor,timestamp:tick.timestamp});}
