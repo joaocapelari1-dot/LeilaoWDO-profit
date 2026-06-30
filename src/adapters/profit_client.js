@@ -133,54 +133,18 @@ class ProfitClient {
     else this.bus.emit('market:book:dol',{symbol:sym,bids,asks,timestamp:Date.now(),source:'price_depth'});
   }
   _onTinyBook(msg) {
-    // Notificar MDIL ÃÂ¢ÃÂÃÂ apenas TinyBook chegou
+    // Notifica a camada de integridade (MDIL ainda usa isso para detectar feed)
     this.mdil.onTinyBook(msg.ticker || '');
     const sym=msg.ticker||''; const isWDO=this._isWDO(sym); const isDOL=this._isDOL(sym);
     if(!isWDO&&!isDOL) return;
-    if(isWDO){if(msg.side==='BUY')this.lastWDO.bid=msg.price;else this.lastWDO.ask=msg.price;}
-    else{if(msg.side==='BUY')this.lastDOL.bid=msg.price;else this.lastDOL.ask=msg.price;}
-    // NAO sobrescrever OfferBook real com dados sinteticos
-    const realBook = isWDO ? this.bookWDO : this.bookDOL;
-    const bidCount = Object.keys(realBook.bids||{}).length;
-    const askCount = Object.keys(realBook.asks||{}).length;
-    if(bidCount >= 5 || askCount >= 5) {
-      return; // OfferBook real disponivel ÃÂ¢ÃÂÃÂ ignorar TinyBook
+    // Apenas guarda bid/ask de topo para calculo de spread/referencia.
+    // NAO gera mais book sintetico nem emite market:book:* — isso agora
+    // e responsabilidade exclusiva de _onPriceDepth (dados reais Level 2).
+    if(isWDO){
+      if(msg.side==='BUY') this.lastWDO.bid=msg.price; else this.lastWDO.ask=msg.price;
+    } else {
+      if(msg.side==='BUY') this.lastDOL.bid=msg.price; else this.lastDOL.ask=msg.price;
     }
-    // Log diagnostico (quando sem OfferBook real)
-    if(!this._tinyCounts) this._tinyCounts={};
-    this._tinyCounts[sym]=(this._tinyCounts[sym]||0)+1;
-    if(this._tinyCounts[sym]===1||this._tinyCounts[sym]%200===0) console.log('[TINY_BOOK]',sym,'SINTETICO (sem OfferBook real) #'+this._tinyCounts[sym]);
-    const ref = isWDO ? this.lastWDO : this.lastDOL;
-    const TICK = 0.5;
-    const tinyPrice = msg.price || 0;
-    if (!tinyPrice) { console.log('[TINY_BOOK]', sym, 'SEM PRECO — msg:', JSON.stringify(msg)); return; }
-    // Atualizar bid/ask de referencia com o que vier do TinyBook
-    if (msg.side === 'BUY'  && tinyPrice) ref.bid = tinyPrice;
-    if (msg.side === 'SELL' && tinyPrice) ref.ask = tinyPrice;
-    const bid = ref.bid || 0;
-    const ask = ref.ask || 0;
-    // SEMPRE garantir os dois lados a partir do tinyPrice — nunca depender
-    // apenas de eventos anteriores que podem nao ter chegado ainda
-    let effectiveBid = bid || tinyPrice - TICK;
-    let effectiveAsk = ask || tinyPrice + TICK;
-    if (effectiveBid >= effectiveAsk) effectiveAsk = effectiveBid + TICK;
-    if (!effectiveBid || effectiveBid <= 0) effectiveBid = tinyPrice - TICK;
-    if (!effectiveAsk || effectiveAsk <= 0) effectiveAsk = tinyPrice + TICK;
-    const LEVELS = 40;
-    const bids = Array.from({length:LEVELS},(_,i)=>({
-      price: Math.round((effectiveBid - i*TICK)*100)/100,
-      qty: Math.max(1, Math.round(50 * Math.exp(-i * 0.15)))
-    }));
-    const asks = Array.from({length:LEVELS},(_,i)=>({
-      price: Math.round((effectiveAsk + i*TICK)*100)/100,
-      qty: Math.max(1, Math.round(50 * Math.exp(-i * 0.15)))
-    }));
-    const totalBid = bids.reduce((s,b)=>s+b.qty,0);
-    const totalAsk = asks.reduce((s,a)=>s+a.qty,0);
-    const book = {symbol:sym,bids,asks,bid_vol_total:totalBid,ask_vol_total:totalAsk,
-      imbalance:0,best_bid:effectiveBid,best_ask:effectiveAsk,timestamp:Date.now(),source:'tiny_book'};
-    if(isWDO) this.bus.emit('market:book:wdo', book);
-    else this.bus.emit('market:book:dol', book);
   }
   _onDaily(msg) {
     const sym=msg.ticker||''; if(!this._isWDO(sym)) return;
