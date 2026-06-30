@@ -521,8 +521,8 @@ async def railway_loop():
             async with websockets.connect(
                 RAILWAY_URL,
                 additional_headers={"X-Bridge-Secret": BRIDGE_SECRET},
-                ping_interval=10,
-                ping_timeout=20,
+                ping_interval=8,
+                ping_timeout=12,
                 close_timeout=5,
             ) as ws:
                 log.info("Conectado ao Railway (/bridge)")
@@ -530,6 +530,12 @@ async def railway_loop():
                 last_heartbeat = asyncio.get_event_loop().time()
 
                 while True:
+                    # Watchdog interno: conexao zumbi (sem erro mas tambem sem
+                    # enviar nada) forca reconexao apos 30s de silencio total.
+                    if asyncio.get_event_loop().time() - last_heartbeat > 30:
+                        log.warning("Sem heartbeat ha 30s — forcando reconexao")
+                        raise ConnectionError("Watchdog: conexao zumbi detectada")
+
                     batch = []
                     try:
                         for _ in range(100):
