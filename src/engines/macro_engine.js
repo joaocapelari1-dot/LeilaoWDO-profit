@@ -419,6 +419,73 @@ class MacroEngine {
     }
   }
 
+
+  // ── CME real (6L=F) via Yahoo Finance — fonte SEPARADA da Twelve Data.
+  // Yahoo nao tem "creditos" tipo Twelve Data, mas e API nao-oficial:
+  // sem garantia de uptime/formato. Cache de 5min reduz risco de rate
+  // limit. Se falhar, retorna null e o painel mostra "indisponivel"
+  // em vez de quebrar o sistema.
+  async _fetchCME6L() {
+    const now = Date.now();
+    if (this._cme6LCache && (now - this._cme6LCache.ts) < 5 * 60 * 1000) {
+      return this._cme6LCache.data;
+    }
+    try {
+      const data = await new Promise((resolve) => {
+        const options = {
+          hostname: 'query1.finance.yahoo.com',
+          path: '/v8/finance/chart/6L=F?interval=1m&range=1d',
+          method: 'GET',
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          timeout: 8000,
+        };
+        const req = https.request(options, (res) => {
+          let body = '';
+          res.on('data', c => body += c);
+          res.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve(null); } });
+        });
+        req.on('error', () => resolve(null));
+        req.on('timeout', () => { req.destroy(); resolve(null); });
+        req.end();
+      });
+
+      const result = data?.chart?.result?.[0];
+      if (!result) { this.log.warn('CME 6L=F: resposta vazia do Yahoo'); return null; }
+
+      const meta = result.meta;
+      const spotUsdPerBrl = meta?.regularMarketPrice;
+      const dayHigh = meta?.regularMarketDayHigh;
+      const dayLow  = meta?.regularMarketDayLow;
+      if (!spotUsdPerBrl) return null;
+
+      // 6L cota em USD por BRL — converter para BRL por USD (mesma unidade do USDBRL/WDO)
+      const brlPerUsd = 1 / spotUsdPerBrl;
+      const brlPerUsdHigh = dayHigh ? 1 / dayLow  : null; // high USD/BRL = low BRL/USD (inverso)
+      const brlPerUsdLow  = dayLow  ? 1 / dayHigh : null;
+
+      const out = {
+        spotRef: brlPerUsd,
+        dayHigh: brlPerUsdHigh,
+        dayLow:  brlPerUsdLow,
+        source: 'yahoo_6L=F',
+        ts: now,
+      };
+      this._cme6LCache = { ts: now, data: out };
+      return out;
+    } catch (e) {
+      this.log.warn('CME 6L=F erro: ' + e.message);
+      return this._cme6LCache?.data || null;
+    }
+  }
+
+  // Range madrugada usando dado REAL do CME (6L), nao mais proxy via USD/BRL Twelve Data
+  async _fetchCMERangeReal() {
+    const cme = await this._fetchCME6L();
+    if (!cme || !cme.dayHigh || !cme.dayLow) return null;
+    const range = Math.round((cme.dayHigh - cme.dayLow) * 20 * 10) / 10;
+    return { max: cme.dayHigh.toFixed(4), min: cme.dayLow.toFixed(4), range, source: 'yahoo_6L=F' };
+  }
+
   _calcCMESpread(usdbrl) {
     try {
       const spot = usdbrl?.price;
