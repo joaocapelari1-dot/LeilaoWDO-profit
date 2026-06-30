@@ -4,7 +4,7 @@ import {
   useSignalAlert, StatusBar,
   PricePanel, FlowPanel, AuctionPanel, DecisionWindow,
   AIPanel,
-  RiskPanel, ExecutionPanel, SuperDOM, SuperDOMDOL,
+  RiskPanel, ExecutionPanel, TimesAndTrades,
   ConfluencePanel, MarketContextPanel, CalibracaoPanel, ExecutionStats, EsgotamentoAlert, ChatSystem, APIStatus, LoginScreen, CIPCMEPanel, TapeThermometer, CMERangePanel, MarketFeaturesPanel, MapaForca
 } from './components/index.jsx'
 
@@ -175,8 +175,8 @@ export default function App() {
           {/* Coluna direita → SuperDOMs */}
           <div style={{ display:'flex', flexDirection:'column', gap:1, overflow:'hidden', height:'100%' }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, flex:1, overflow:'hidden' }}>
-                            <SuperDOM book={socket.book} features={socket.features} mdilStatus={socket.mdilStatus?.['WDOQ26']} levels={40} />
-              <SuperDOMDOL dolFeatures={socket.dolFeatures} bookDol={socket.bookDol} dolTick={socket.dolTick} mdilStatus={socket.mdilStatus?.['DOLQ26']} levels={40} />
+              <TimesAndTrades tape={socket.tape}    symbol="WDOQ26" mdilStatus={socket.mdilStatus?.['WDOQ26']} />
+              <TimesAndTrades tape={socket.tapeDol} symbol="DOLQ26" mdilStatus={socket.mdilStatus?.['DOLQ26']} />
             </div>
           </div>
 
