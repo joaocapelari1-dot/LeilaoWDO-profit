@@ -2300,3 +2300,45 @@ export function TapeThermometer({ features, mktFeatures }) {
     </div>
   )
 }
+
+// ──────────────────────────────────────────────────────────────────
+// TimesAndTrades — substitui o SuperDOM. Lista append-only de negocios
+// (preco, volume, agressor). Sem reposicionamento de linhas existentes,
+// sem recalculo de book inteiro a cada update — elimina o flicker que
+// o SuperDOM tinha por reconstruir 80 linhas a cada atualizacao de book.
+// ──────────────────────────────────────────────────────────────────
+export function TimesAndTrades({ tape = [], symbol = '', mdilStatus, maxRows = 30 }) {
+  const C = { panel:'#0c1219', border:'#1e2832', text:'#e2e8f0', muted:'#64748b', green:'#22c55e', red:'#ef4444', gold:'#f59e0b' }
+  const rows = tape.slice(0, maxRows)
+
+  return (
+    <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:4, overflow:'hidden', display:'flex', flexDirection:'column', height:'100%' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 8px', borderBottom:`1px solid ${C.border}`, background:'#0a1018', flexShrink:0 }}>
+        <span style={{ fontSize:9, color:C.gold, letterSpacing:1, fontFamily:'monospace' }}>TIMES & TRADES</span>
+        {mdilStatus?.synthetic && <span style={{fontSize:7,color:'#f59e0b',border:'1px solid #f59e0b44',borderRadius:2,padding:'0 2px',marginLeft:4}}>SIMULADO</span>}
+        <span style={{ fontSize:9, color:C.muted, fontFamily:'monospace' }}>{symbol}</span>
+      </div>
+      <div style={{ flex:1, overflowY:'auto', fontFamily:'monospace', fontSize:10 }}>
+        <div style={{ display:'flex', padding:'3px 8px', borderBottom:`1px solid ${C.border}`, color:C.muted, fontSize:8, position:'sticky', top:0, background:C.panel }}>
+          <span style={{ flex:1 }}>HORA</span>
+          <span style={{ flex:1, textAlign:'right' }}>PREÇO</span>
+          <span style={{ flex:1, textAlign:'right' }}>VOL</span>
+        </div>
+        {rows.length === 0 && (
+          <div style={{ padding:12, color:C.muted, fontSize:9, textAlign:'center' }}>Aguardando negócios...</div>
+        )}
+        {rows.map((t, i) => {
+          const cor = t.side === 'buy' ? C.green : t.side === 'sell' ? C.red : C.text
+          const hora = new Date(t.ts).toLocaleTimeString('pt-BR', { hour12:false })
+          return (
+            <div key={t.ts + '_' + i} style={{ display:'flex', padding:'2px 8px', borderBottom:'1px solid #11181f' }}>
+              <span style={{ flex:1, color:C.muted, fontSize:9 }}>{hora}</span>
+              <span style={{ flex:1, textAlign:'right', color:cor, fontWeight:600 }}>{Number(t.price).toFixed(2)}</span>
+              <span style={{ flex:1, textAlign:'right', color:C.muted }}>{t.vol}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
