@@ -170,38 +170,10 @@ if (isMainThread) {
     });
   }
 
-  bus.on('profit:price_depth', (d) => {
-    if (!d || !d.ticker) return;
-
-    const WDO = ['WDO','WDON26','WDOQ26','WDOV26'];
-    const DOL = ['DOL','DOLN26','DOLQ26','DOLV26'];
-
-    const sym = d.ticker;
-
-    const isWDO = WDO.some(s => sym.includes(s));
-    const isDOL = DOL.some(s => sym.includes(s));
-    if (!isWDO && !isDOL) return;
-
-    const book = {
-      symbol: sym,
-      bids: (d.bids || []).map(b => ({ price: b.price, qty: b.qty })),
-      asks: (d.asks || []).map(a => ({ price: a.price, qty: a.qty })),
-      bid_vol_total: (d.bids || []).reduce((s,b) => s + b.qty, 0),
-      ask_vol_total: (d.asks || []).reduce((s,a) => s + a.qty, 0),
-      imbalance: 0,
-      source: 'price_depth_real',
-      timestamp: Date.now(),
-    };
-
-    if (isWDO) bus.emit('book:update', book);
-    else bus.emit('book:update:dol', book);
-
-    try {
-      adapter.mdil?.onOfferBook(sym, book.bids.length);
-    } catch {}
-
-    log.info(`[PRICE_DEPTH] ${sym}`);
-  });
+  // NOTA: profit:price_depth e processado exclusivamente dentro do
+  // ProfitClient (_onPriceDepth em src/adapters/profit_client.js), que
+  // ja emite market:book:wdo/market:book:dol. Um segundo handler aqui
+  // duplicava o processamento (log poluido, CPU desperdicada). Removido.
 
   bus.on('raw:tick', d => normalizer.process(d));
   bus.on('raw:book', d => normalizer.processBook(d));
