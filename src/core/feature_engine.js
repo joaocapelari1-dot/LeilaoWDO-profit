@@ -16,7 +16,7 @@ class SymbolState {
     this.sellVol      = 0;
     this.vwapNum      = 0;
     this.vwapDen      = 0;
-    this.auctionData  = { theoreticalPrice: null, surplus: 0, side: null, volumeAtAuction: 0 };
+    this.auctionData  = { theoreticalPrice: null, surplus: null, side: null, volumeAtAuction: null };
     this.icebergTracker    = {};
     this.prevBookSnapshot  = {};
   }
