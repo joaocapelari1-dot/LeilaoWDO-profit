@@ -326,10 +326,12 @@ def _cb_stub(*args):
 # ──────────────────────────────────────────────────────────────────
 def _read_price_depth(dll, ticker, max_levels=40):
     try:
+        _t = ctypes.create_unicode_buffer(ticker)
+        _e = ctypes.create_unicode_buffer(EXCHANGE_BMF)
         asset = TConnectorAssetIdentifier()
         asset.Version  = 0
-        asset.Ticker   = ticker
-        asset.Exchange = EXCHANGE_BMF
+        asset.Ticker   = ctypes.cast(_t, ctypes.c_wchar_p)
+        asset.Exchange = ctypes.cast(_e, ctypes.c_wchar_p)
         asset.FeedType = 0
 
         bids, asks = [], []
