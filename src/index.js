@@ -178,6 +178,11 @@ if (isMainThread) {
   bus.on('raw:tick', d => normalizer.process(d));
   bus.on('raw:book', d => normalizer.processBook(d));
   bus.on('raw:trade', d => normalizer.processTrade(d));
+  // market:trade:wdo/dol (emitidos por profit_client._onTrade) nunca
+  // alimentavam o normalizer — VAP/Agressor Ratio/Times&Trades de features
+  // ficavam vazios pois normalized:trade nunca disparava.
+  bus.on('market:trade:wdo', d => normalizer.processTrade(d));
+  bus.on('market:trade:dol', d => normalizer.processTrade(d));
 
   bus.on('market:tick:wdo', d => normalizer.process(d));
   bus.on('market:tick:dol', (d) => {
