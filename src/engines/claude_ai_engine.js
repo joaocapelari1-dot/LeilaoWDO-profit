@@ -227,6 +227,10 @@ class ClaudeAIEngine {
     // Notifica Telegram imediatamente na 1Âª janela â ANTES da call
     if (!this._claudeIniciouNotificado) {
       this._claudeIniciouNotificado = true;
+      // Reset da conversa acumulativa para o novo pregão
+      this.conversaHistorico = [];
+      this.conversaIniciada  = false;
+      this.updateCount       = 0;
       this.bus.emit('claude:iniciou', { hora: new Date().toLocaleTimeString('pt-BR') });
     }
 
@@ -284,7 +288,14 @@ class ClaudeAIEngine {
 
       const response = await Promise.race([claudePromise, timeoutPromise]);
 
-      const text    = response.content[0]?.text || '';
+            const text    = response.content[0]?.text || '';
+      // Adicionar resposta do Claude ao histórico da conversa
+      this.conversaHistorico.push({ role: 'assistant', content: text });
+      this.conversaIniciada = true;
+      // Limitar histórico a 20 turnos (10 updates) para não estouar context window
+      if (this.conversaHistorico.length > 20) {
+        this.conversaHistorico.splice(2, 2); // Remove mais antigos, mantém primeiro contexto
+      }
       const analise = this._parsear(text, motivo);
       this.lastAnalise  = analise;
       this.lastAnaliseCache = { ...analise, cacheTs: Date.now() }; // ââ ProteÃ§Ã£o 2: salva cache
