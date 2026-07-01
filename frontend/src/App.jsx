@@ -5,7 +5,7 @@ import {
   PricePanel, FlowPanel, AuctionPanel, DecisionWindow,
   AIPanel,
   RiskPanel, ExecutionPanel, TimesAndTrades,
-  ConfluencePanel, MarketContextPanel, CalibracaoPanel, ExecutionStats, EsgotamentoAlert, ChatSystem, APIStatus, LoginScreen, CIPCMEPanel, TapeThermometer, CMERangePanel, MarketFeaturesPanel, MapaForca
+  MarketContextPanel, CalibracaoPanel, ExecutionStats, EsgotamentoAlert, ChatSystem, APIStatus, LoginScreen, CIPCMEPanel, TapeThermometer, CMERangePanel, MarketFeaturesPanel, MapaForca
 } from './components/index.jsx'
 
 function Clock() {
@@ -203,7 +203,7 @@ import {
   PricePanel, FlowPanel, AuctionPanel, DecisionWindow,
   AIPanel,
   RiskPanel, ExecutionPanel, TimesAndTrades,
-  ConfluencePanel, MarketContextPanel, CalibracaoPanel, ExecutionStats, EsgotamentoAlert, ChatSystem, APIStatus, LoginScreen, CIPCMEPanel, TapeThermometer, CMERangePanel, MarketFeaturesPanel, MapaForca
+  MarketContextPanel, CalibracaoPanel, ExecutionStats, EsgotamentoAlert, ChatSystem, APIStatus, LoginScreen, CIPCMEPanel, TapeThermometer, CMERangePanel, MarketFeaturesPanel, MapaForca
 } from './components/index.jsx'
 
 function Clock() {
