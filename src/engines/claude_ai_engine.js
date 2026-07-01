@@ -13,7 +13,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { Logger } = require('../utils/logger');
 
-const INTERVALO_NORMAL     = 60000;  // 60s — conversa acumulativa: 1 update/min durante leilão
+const INTERVALO_NORMAL     = 60000; // 60s — conversa acumulativa   // 5s â call Claude ~3-4s, sem sobreposiÃ§Ã£o
 const MAX_TOKENS = 600;
 
 // HorÃ¡rios BRT
@@ -38,11 +38,9 @@ class ClaudeAIEngine {
     this.updateCount       = 0;
 
     // ── AdaptiveLog temporário do leilão ─────────────────────────
-    // Buffer de curto prazo: acumula snapshots a cada 30s durante
-    // 8h55-9h01. Se o Claude cair e reiniciar, ele lê esse log
-    // antes de continuar — mantém contexto mesmo após reconexão.
-    // Limpo automaticamente ao final do leilão.
-    this.leilaoLog = [];  // [{ts, tp, surplus, lado, aucVol, aggRatio, flowDelta, iceberg, observacao}]
+    // Grava snapshots a cada 30s durante 8h55-9h01.
+    // Se Claude cair, lê esse log para retomar contexto.
+    this.leilaoLog      = [];
     this.leilaoLogTimer = null;
 
     this._initClient();
@@ -111,12 +109,12 @@ class ClaudeAIEngine {
   // ââ Janela encerrada â sem pÃ³s-abertura, sem estados ââââââââââ
   _sairJanela() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
-    // Parar e limpar AdaptiveLog temporário do leilão
     if (this.leilaoLogTimer) { clearInterval(this.leilaoLogTimer); this.leilaoLogTimer = null; }
     if (this.leilaoLog && this.leilaoLog.length > 0) {
-      this.log.info(`AdaptiveLog leilão: ${this.leilaoLog.length} snapshots — limpando`);
+      this.log.info(`AdaptiveLog leilao: ${this.leilaoLog.length} snapshots — limpando`);
       this.leilaoLog = [];
     }
+    // standby silencioso â nÃ£o logar fora da janela (evita spam no log)
   }
 
   // ââ Agendamento por horÃ¡rio â inicia Ã s 8h55 sem depender de ticks ââ
@@ -213,13 +211,152 @@ class ClaudeAIEngine {
     if (!naAquecimento && !naJanelaVeredicto) {
       this._claudeIniciouNotificado = false;
       this.veredictoFinalEmitido = false; // reset para prÃ³ximo pregÃ£o
-  _sairJanela() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
-    // Parar e limpar AdaptiveLog temporário do leilão
-    if (this.leilaoLogTimer) { clearInterval(this.leilaoLogTimer); this.leilaoLogTimer = null; }
-    if (this.leilaoLog && this.leilaoLog.length > 0) {
-      this.log.info(`AdaptiveLog leilão: ${this.leilaoLog.length} snapshots — limpando`);
-      this.leilaoLog = [];
+      this._sairJanela();
+      return;
+    }
+
+    // Veredicto final: dispara 1x quando 1Âº negÃ³cio chega (auc_vol â¥ 100)
+    if (naJanelaVeredicto) {
+      const auc_vol = this.lastFeatures?.auc_vol || this.lastFeatures?.auction?.volumeAtAuction || 0;
+      if (auc_vol >= 100 && !this.veredictoFinalEmitido) {
+        this.veredictoFinalEmitido = true;
+        // Para o timer imediatamente â veredicto Ã© 1 call Ãºnica
+        if (this.timer) { clearInterval(this.timer); this.timer = null; }
+        this.log.info('ð 1Âº negÃ³cio detectado (auc_vol=' + auc_vol + ') â VEREDICTO FINAL');
+        motivo = 'veredicto_final';
+        // Continua para a call abaixo
+      } else {
+        return; // aguarda auc_vol â¥ 100 ou veredicto jÃ¡ emitido
+      }
+    }
+
+    if (!naAquecimento && motivo !== 'veredicto_final') return;
+
+    // Notifica Telegram imediatamente na 1Âª janela â ANTES da call
+    if (!this._claudeIniciouNotificado) {
+      this._claudeIniciouNotificado = true;
+      this.conversaHistorico = [];
+      this.conversaIniciada  = false;
+      this.updateCount       = 0;
+      this.leilaoLog         = [];
+      if (this.leilaoLogTimer) clearInterval(this.leilaoLogTimer);
+      this.leilaoLogTimer = setInterval(() => this._gravarLeilaoLog(), 30000);
+      this._gravarLeilaoLog(); // snapshot imediato
+      this.bus.emit('claude:iniciou', { hora: new Date().toLocaleTimeString('pt-BR') });
+    }
+
+    // Claude analisa por horÃ¡rio â nÃ£o depende de estado PRE_OPEN/AUCTION
+    // Dados chegam desde 8h55 independente do estado
+    this._isAnalyzing = true;
+    try {
+
+    if (this.stubMode) {
+      this._emitirStub(motivo);
+      return;
+    }
+
+    try {
+      this.totalChamadas++;
+      this.log.info(`Claude #${this.totalChamadas} [${motivo}]`);
+
+      // ââ ProteÃ§Ã£o 1: Timeout adaptativo â 25s na janela crÃ­tica, 15s fora ââ
+      // CRÃTICO: durante 8h55â9h00:50 o prompt Ã© maior e o sistema precisa de resposta real
+      // Aumentar timeout evita cair em DEGRADED MODE com 90% aggressor ratio (bug 12/06)
+      const _brtT = new Date(Date.now() - 3*60*60*1000);
+      const _hT = _brtT.getUTCHours(); const _mT = _brtT.getUTCMinutes(); const _sT = _brtT.getUTCSeconds();
+      const _naJanelaCritica = (_hT === 8 && _mT >= 55) || (_hT === 9 && _mT === 0 && _sT <= 50);
+      const TIMEOUT_MS = _naJanelaCritica ? 25000 : 15000;
+      const TIMEOUT_LABEL = _naJanelaCritica ? 'TIMEOUT_25S_CRITICO' : 'TIMEOUT_15S';
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(TIMEOUT_LABEL)), TIMEOUT_MS)
+      );
+
+      // ── Conversa acumulativa ────────────────────────────────────
+      this.updateCount++;
+      const isFirst = !this.conversaIniciada;
+      const isFinal = motivo === 'veredicto_final';
+      const userMsg = isFirst
+        ? this._buildPromptInicial(motivo)
+        : isFinal
+          ? this._buildPromptVeredictoFinal()
+          : this._buildPromptUpdate(motivo);
+
+      this.conversaHistorico.push({ role: 'user', content: userMsg });
+
+      const claudePromise = this.client.messages.create({
+        model:      'claude-sonnet-4-6',
+        max_tokens: isFinal ? 800 : 300,
+        system: [
+          { type: 'text', text: this._systemPrompt(), cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: this._jsonSchema(),    cache_control: { type: 'ephemeral' } },
+        ],
+        messages: this.conversaHistorico,
+      });
+
+      const response = await Promise.race([claudePromise, timeoutPromise]);
+
+      const text    = response.content[0]?.text || '';
+      this.conversaHistorico.push({ role: 'assistant', content: text });
+      this.conversaIniciada = true;
+      if (this.conversaHistorico.length > 20) this.conversaHistorico.splice(2, 2);
+      const analise = this._parsear(text, motivo);
+      this.lastAnalise  = analise;
+      this.lastAnaliseCache = { ...analise, cacheTs: Date.now() }; // ââ ProteÃ§Ã£o 2: salva cache
+      this.claudeErros  = 0;
+      this.claudeOffline = false;
+
+      this.log.info(`Veredito: ${analise.veredito} | ConfianÃ§a: ${(analise.confianca*100).toFixed(0)}% | Motivo: ${motivo}`);
+      this.bus.emit('ai:analise', analise);
+
+    } catch (e) {
+      this.claudeErros++;
+
+      // Proteção do histórico: remove mensagem user sem resposta
+      if (this.conversaHistorico.length > 0 &&
+          this.conversaHistorico[this.conversaHistorico.length - 1].role === 'user') {
+        this.conversaHistorico.pop();
+        this.log.warn('Historico corrigido — removida msg user sem resposta');
+      }
+
+      // 3+ erros: resetar conversa usando leilaoLog para recuperação
+      if (this.claudeErros >= 3) {
+        const resumo = this._resumirLeilaoLog();
+        this.conversaHistorico = resumo
+          ? [{ role: 'user', content: 'RECUPERACAO APOS FALHA. Retome a analise:
+
+' + resumo }]
+          : [];
+        this.conversaIniciada = this.conversaHistorico.length > 0;
+        this.updateCount      = 0;
+        this.log.warn('Conversa resetada — ' + (resumo ? 'leilaoLog injetado' : 'sem historico'));
+      }
+
+      if (e.message.startsWith('TIMEOUT_')) {
+        this.log.warn(`â±ï¸ Claude timeout (${e.message}) â usando cache anterior`);
+      } else {
+        this.log.error('Erro Claude API:', e.message);
+      }
+
+      // ââ ProteÃ§Ã£o 2: usa cache se disponÃ­vel ââââââââââââââââââ
+      if (this.lastAnaliseCache) {
+        this.log.warn('ð¦ Usando anÃ¡lise em cache do Ãºltimo segundo');
+        const cached = { ...this.lastAnaliseCache, fromCache: true, cacheTs: this.lastAnaliseCache?.cacheTs || Date.now() };
+        this.bus.emit('ai:analise', cached);
+        return;
+      }
+
+      // ââ ProteÃ§Ã£o 3: modo degradado se 3+ erros consecutivos ââ
+      if (this.claudeErros >= 3) {
+        this.claudeOffline = true;
+        this.log.warn('ð´ Claude OFFLINE â ativando modo degradado');
+        this._modoDegradado(motivo);
+        return;
+      }
+
+      this._emitirStub(motivo);
+    }
+    } finally {
+      this._isAnalyzing = false;
     }
   }
 
@@ -286,142 +423,6 @@ Responda SOMENTE em JSON vÃ¡lido sem markdown.`;
   }
 
   // ââ Prompt completo âââââââââââââââââââââââââââââââââââââââââââ
-
-  // ── AdaptiveLog temporário do leilão ─────────────────────────────
-  // Grava snapshot a cada 30s durante 8h55-9h01.
-  // Usado para recuperação: se Claude cair e reiniciar, lê esse log
-  // e retoma a análise com contexto acumulado.
-  _gravarLeilaoLog() {
-    const f  = this.lastFeatures || {};
-    const fd = this.lastDOL;
-    const ic = this.lastIceberg;
-    const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
-    const hora = `${String(brt.getUTCHours()).padStart(2,'0')}:${String(brt.getUTCMinutes()).padStart(2,'0')}:${String(brt.getUTCSeconds()).padStart(2,'0')}`;
-
-    const snapshot = {
-      ts:         Date.now(),
-      hora,
-      tp:         f.auction?.theoreticalPrice?.toFixed(2) ?? null,
-      surplus:    f.auction?.surplus ?? null,
-      lado:       f.auction?.side ?? null,
-      aucVol:     f.auction?.volumeAtAuction ?? 0,
-      aggRatio:   f.aggRatio != null ? Math.round(f.aggRatio * 100) : null,
-      flowDelta:  f.flowDelta ?? 0,
-      // DOL
-      dolTp:      fd?.auction?.theoreticalPrice?.toFixed(2) ?? null,
-      dolSurplus: fd?.auction?.surplus ?? null,
-      dolLado:    fd?.auction?.side ?? null,
-      dolAgg:     fd?.aggRatio != null ? Math.round(fd.aggRatio * 100) : null,
-      // Iceberg
-      iceberg:    ic && (Date.now() - ic.detectedAt) < 60000
-                    ? { preco: ic.price, lado: ic.side, count: ic.count }
-                    : null,
-      // Última observação do Claude
-      observacao: this.lastAnalise?.reasoning ?? null,
-      confianca:  this.lastAnalise ? Math.round((this.lastAnalise.confianca || 0) * 100) : null,
-      veredito:   this.lastAnalise?.veredito ?? null,
-    };
-
-    this.leilaoLog.push(snapshot);
-    // Manter apenas os últimos 20 snapshots (~10 minutos)
-    if (this.leilaoLog.length > 20) this.leilaoLog.shift();
-  }
-
-  // Gera um resumo textual do AdaptiveLog para injetar no prompt de recuperação
-  _resumirLeilaoLog() {
-    if (!this.leilaoLog || this.leilaoLog.length === 0) return null;
-    const linhas = this.leilaoLog.map(s =>
-      `[${s.hora}] TP=${s.tp ?? '?'} Surplus=${s.surplus ?? '?'} Lado=${s.lado ?? '?'} ` +
-      `AucVol=${s.aucVol} Agress=${s.aggRatio ?? '?'}%C DOL:${s.dolTp ?? '?'}/${s.dolLado ?? '?'}` +
-      (s.iceberg ? ` 🧊${s.iceberg.lado}@${s.iceberg.preco}x${s.iceberg.count}` : '') +
-      (s.observacao ? ` | Claude: "${s.observacao}" (${s.confianca}%)` : '')
-    );
-    return `HISTÓRICO DO LEILÃO (últimos ${this.leilaoLog.length} snapshots de 30s):
-` + linhas.join('
-');
-  }
-
-    // ── Prompt inicial (8h55:00) — contexto completo ──────────────────
-  // Enviado UMA VEZ no início do leilão. Contém tudo: macro, gap,
-  // calendário, dados WDO/DOL. O Claude começa a "acompanhar" o leilão.
-  _buildPromptInicial(motivo) {
-    const f  = this.lastFeatures || {};
-    const fd = this.lastDOL;
-    const m  = this.lastMacro;
-    const ctx = this.lastContext || {};
-
-    const macroTxt = m ? `DXY: ${m.dxy?.price?.toFixed(3)} (${m.dxy?.changePct?.toFixed(2)}%) | USD/BRL: ${m.usdbrl?.price?.toFixed(4)} | VIX: ${m.vix?.price?.toFixed(1)}${m.vix?.price > 25 ? ' ⚠️' : ''} | S&P: ${m.sp500?.price?.toFixed(0)} | Score: ${m.macroScore}/10` : 'Macro indisponível';
-
-    const gapTxt = ctx.gap ? `Gap: ${ctx.gap.gapPct > 0 ? '+' : ''}${ctx.gap.gapPct}% (${ctx.gap.classificacao}) | Fechamento ontem: ${ctx.gap.prevClose}` : 'Gap: calculando...';
-
-    const calTxt = ctx.calendario?.temEventoCritico
-      ? `⚠️ EVENTOS ALTO IMPACTO: ${(ctx.calendario.eventosProximos||[]).map(e => e.nome + ' ' + e.hora).join(', ')}`
-      : 'Sem eventos críticos nas próximas 2h';
-
-    const wdoTxt = `WDO: Last=${f.last} TP=${f.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${f.auction?.surplus ?? '?'} Lado=${f.auction?.side ?? '?'} AucVol=${f.auction?.volumeAtAuction ?? 0} Agress=${((f.aggRatio||0.5)*100).toFixed(0)}%C Flow=${f.flowDelta ?? 0}`;
-
-    const dolTxt = fd ? `DOL: Last=${fd.last} TP=${fd.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${fd.auction?.surplus ?? '?'} Lado=${fd.auction?.side ?? '?'} Agress=${((fd.aggRatio||0.5)*100).toFixed(0)}%C Flow=${fd.flowDelta ?? 0}` : 'DOL: aguardando';
-
-    return `LEILÃO INICIADO — 8h55 BRT | Acompanhe e acumule contexto até o veredicto final.
-
-MACRO: ${macroTxt}
-${gapTxt}
-${calTxt}
-
-${wdoTxt}
-${dolTxt}
-
-Responda APENAS: {"observando": true, "impressao_inicial": "max 15 palavras sobre o setup atual"}`;
-  }
-
-  // ── Prompt de update (a cada 60s) — apenas o delta ─────────────────
-  // Enviado a cada ~60s durante o leilão. Contém APENAS o que mudou.
-  // O Claude já tem o contexto inicial e vai acumulando observações.
-  _buildPromptUpdate(motivo) {
-    const f  = this.lastFeatures || {};
-    const fd = this.lastDOL;
-    const ic = this.lastIceberg;
-    const icebergAtivo = ic && (Date.now() - ic.detectedAt) < 45000;
-
-    const wdoTxt = `WDO: TP=${f.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${f.auction?.surplus ?? '?'} Lado=${f.auction?.side ?? '?'} AucVol=${f.auction?.volumeAtAuction ?? 0} Agress=${((f.aggRatio||0.5)*100).toFixed(0)}%C Flow=${f.flowDelta ?? 0}`;
-    const dolTxt = fd ? `DOL: TP=${fd.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${fd.auction?.surplus ?? '?'} Lado=${fd.auction?.side ?? '?'} Agress=${((fd.aggRatio||0.5)*100).toFixed(0)}%C Flow=${fd.flowDelta ?? 0}` : '';
-    const iceTxt = icebergAtivo ? `🧊 ICEBERG: preco=${ic.price} lado=${ic.side} count=${ic.count} vol=${ic.totalVol}` : '';
-
-    return `UPDATE #${this.updateCount} | ${motivo}
-${wdoTxt}
-${dolTxt}${iceTxt ? `
-${iceTxt}` : ''}
-
-Responda APENAS: {"observando": true, "tendencia": "max 10 palavras descrevendo evolução do setup"}`;
-  }
-
-  // ── Prompt de veredicto final — decisão explícita ───────────────────
-  // Enviado UMA VEZ quando o 1º negócio real fecha (auc_vol >= 100).
-  // O Claude tem todo o contexto acumulado e dá o veredicto definitivo.
-  _buildPromptVeredictoFinal() {
-    const f  = this.lastFeatures || {};
-    const fd = this.lastDOL;
-    const m  = this.lastMacro;
-    const ic = this.lastIceberg;
-    const icebergAtivo = ic && (Date.now() - ic.detectedAt) < 60000;
-
-    const wdoFinal = `WDO FINAL: TP=${f.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${f.auction?.surplus ?? '?'} Lado=${f.auction?.side ?? '?'} AucVol=${f.auction?.volumeAtAuction ?? 0} Agress=${((f.aggRatio||0.5)*100).toFixed(0)}%C/${((1-(f.aggRatio||0.5))*100).toFixed(0)}%V Flow=${f.flowDelta ?? 0}`;
-    const dolFinal = fd ? `DOL FINAL: TP=${fd.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${fd.auction?.surplus ?? '?'} Lado=${fd.auction?.side ?? '?'} Agress=${((fd.aggRatio||0.5)*100).toFixed(0)}%C Flow=${fd.flowDelta ?? 0}` : '';
-    const macroFinal = m ? `MACRO: Score=${m.macroScore}/10 DXY=${m.dxy?.changePct?.toFixed(2)}% VIX=${m.vix?.price?.toFixed(1)}` : '';
-    const iceFinal = icebergAtivo ? `ICEBERG ATIVO: preco=${ic.price} lado=${ic.side} count=${ic.count}` : '';
-
-    return `⚡ VEREDICTO FINAL SOLICITADO — 1º negócio fechou.
-Você acompanhou o leilão desde 8h55. Com base em TUDO que observou:
-
-${wdoFinal}
-${dolFinal}
-${macroFinal}
-${iceFinal}
-
-Emita o JSON de veredicto completo conforme o schema do sistema. Esta é a decisão final.`;
-  }
-
-
   _buildPrompt(motivo) {
     const f  = this.lastFeatures;
     const fd = this.lastDOL;
