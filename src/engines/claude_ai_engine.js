@@ -111,7 +111,12 @@ class ClaudeAIEngine {
   // ââ Janela encerrada â sem pÃ³s-abertura, sem estados ââââââââââ
   _sairJanela() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
-    // standby silencioso â nÃ£o logar fora da janela (evita spam no log)
+    // Parar e limpar AdaptiveLog temporário do leilão
+    if (this.leilaoLogTimer) { clearInterval(this.leilaoLogTimer); this.leilaoLogTimer = null; }
+    if (this.leilaoLog && this.leilaoLog.length > 0) {
+      this.log.info(`AdaptiveLog leilão: ${this.leilaoLog.length} snapshots — limpando`);
+      this.leilaoLog = [];
+    }
   }
 
   // ââ Agendamento por horÃ¡rio â inicia Ã s 8h55 sem depender de ticks ââ
@@ -208,162 +213,13 @@ class ClaudeAIEngine {
     if (!naAquecimento && !naJanelaVeredicto) {
       this._claudeIniciouNotificado = false;
       this.veredictoFinalEmitido = false; // reset para prÃ³ximo pregÃ£o
-      this._sairJanela();
-      return;
-    }
-
-    // Veredicto final: dispara 1x quando 1Âº negÃ³cio chega (auc_vol â¥ 100)
-    if (naJanelaVeredicto) {
-      const auc_vol = this.lastFeatures?.auc_vol || this.lastFeatures?.auction?.volumeAtAuction || 0;
-      if (auc_vol >= 100 && !this.veredictoFinalEmitido) {
-        this.veredictoFinalEmitido = true;
-        // Para o timer imediatamente â veredicto Ã© 1 call Ãºnica
-        if (this.timer) { clearInterval(this.timer); this.timer = null; }
-        this.log.info('ð 1Âº negÃ³cio detectado (auc_vol=' + auc_vol + ') â VEREDICTO FINAL');
-        motivo = 'veredicto_final';
-        // Continua para a call abaixo
-      } else {
-        return; // aguarda auc_vol â¥ 100 ou veredicto jÃ¡ emitido
-      }
-    }
-
-    if (!naAquecimento && motivo !== 'veredicto_final') return;
-
-    // Notifica Telegram imediatamente na 1Âª janela â ANTES da call
-    if (!this._claudeIniciouNotificado) {
-      this._claudeIniciouNotificado = true;
-      // Reset da conversa acumulativa e do leilaoLog para o novo pregão
-      this.conversaHistorico = [];
-      this.conversaIniciada  = false;
-      this.updateCount       = 0;
-      this.leilaoLog         = [];
-      // Iniciar gravação do AdaptiveLog temporário a cada 30s
-      if (this.leilaoLogTimer) clearInterval(this.leilaoLogTimer);
-      this.leilaoLogTimer = setInterval(() => this._gravarLeilaoLog(), 30000);
-      this._gravarLeilaoLog(); // snapshot imediato no início
-      this.bus.emit('claude:iniciou', { hora: new Date().toLocaleTimeString('pt-BR') });
-    }
-
-    // Claude analisa por horÃ¡rio â nÃ£o depende de estado PRE_OPEN/AUCTION
-    // Dados chegam desde 8h55 independente do estado
-    this._isAnalyzing = true;
-    try {
-
-    if (this.stubMode) {
-      this._emitirStub(motivo);
-      return;
-    }
-
-    try {
-      this.totalChamadas++;
-      this.log.info(`Claude #${this.totalChamadas} [${motivo}]`);
-
-      // ââ ProteÃ§Ã£o 1: Timeout adaptativo â 25s na janela crÃ­tica, 15s fora ââ
-      // CRÃTICO: durante 8h55â9h00:50 o prompt Ã© maior e o sistema precisa de resposta real
-      // Aumentar timeout evita cair em DEGRADED MODE com 90% aggressor ratio (bug 12/06)
-      const _brtT = new Date(Date.now() - 3*60*60*1000);
-      const _hT = _brtT.getUTCHours(); const _mT = _brtT.getUTCMinutes(); const _sT = _brtT.getUTCSeconds();
-      const _naJanelaCritica = (_hT === 8 && _mT >= 55) || (_hT === 9 && _mT === 0 && _sT <= 50);
-      const TIMEOUT_MS = _naJanelaCritica ? 25000 : 15000;
-      const TIMEOUT_LABEL = _naJanelaCritica ? 'TIMEOUT_25S_CRITICO' : 'TIMEOUT_15S';
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(TIMEOUT_LABEL)), TIMEOUT_MS)
-      );
-
-      // ── Conversa acumulativa ────────────────────────────────────
-      // Na primeira chamada: inicia conversa com contexto completo.
-      // Nas chamadas seguintes: envia apenas o DELTA (o que mudou),
-      // aproveitando o contexto acumulado do Claude ao longo do leilão.
-      // No veredicto final: solicita decisão explícita com todos os dados.
-      this.updateCount++;
-      const isFirst   = !this.conversaIniciada;
-      const isFinal   = motivo === 'veredicto_final';
-      const userMsg   = isFirst
-        ? this._buildPromptInicial(motivo)
-        : isFinal
-          ? this._buildPromptVeredictoFinal()
-          : this._buildPromptUpdate(motivo);
-
-      this.conversaHistorico.push({ role: 'user', content: userMsg });
-
-      const claudePromise = this.client.messages.create({
-        model:      'claude-sonnet-4-6',
-        max_tokens: isFinal ? 800 : 300, // veredicto final precisa de mais tokens
-        system: [
-          { type: 'text', text: this._systemPrompt(), cache_control: { type: 'ephemeral' } },
-          { type: 'text', text: this._jsonSchema(),    cache_control: { type: 'ephemeral' } },
-        ],
-        messages: this.conversaHistorico,
-      });
-
-      const response = await Promise.race([claudePromise, timeoutPromise]);
-
-            const text    = response.content[0]?.text || '';
-      // Adicionar resposta do Claude ao histórico da conversa
-      this.conversaHistorico.push({ role: 'assistant', content: text });
-      this.conversaIniciada = true;
-      // Limitar histórico a 20 turnos (10 updates) para não estouar context window
-      if (this.conversaHistorico.length > 20) {
-        this.conversaHistorico.splice(2, 2); // Remove mais antigos, mantém primeiro contexto
-      }
-      const analise = this._parsear(text, motivo);
-      this.lastAnalise  = analise;
-      this.lastAnaliseCache = { ...analise, cacheTs: Date.now() }; // ââ ProteÃ§Ã£o 2: salva cache
-      this.claudeErros  = 0;
-      this.claudeOffline = false;
-
-      this.log.info(`Veredito: ${analise.veredito} | ConfianÃ§a: ${(analise.confianca*100).toFixed(0)}% | Motivo: ${motivo}`);
-      this.bus.emit('ai:analise', analise);
-
-    } catch (e) {
-      this.claudeErros++;
-
-      // ── CRÍTICO: proteção do histórico da conversa acumulativa ──────
-      // Se a chamada falhou DEPOIS de adicionar a mensagem do user ao
-      // histórico (mas ANTES de receber resposta do assistant), o histórico
-      // fica com user→user sem assistant no meio, o que quebra a API na
-      // próxima chamada. Removemos a última mensagem se ela for 'user'.
-      if (this.conversaHistorico.length > 0 &&
-          this.conversaHistorico[this.conversaHistorico.length - 1].role === 'user') {
-        this.conversaHistorico.pop();
-        this.log.warn('⚠ Histórico da conversa corrigido — removida mensagem user sem resposta');
-      }
-
-      // Se 3+ erros consecutivos: resetar conversa completamente para
-      // próxima tentativa partir do zero (mais seguro que manter histórico corrompido)
-      if (this.claudeErros >= 3) {
-        this.conversaHistorico = [];
-        this.conversaIniciada  = false;
-        this.updateCount       = 0;
-        this.log.warn('🔄 Histórico da conversa resetado após 3 erros consecutivos');
-      }
-
-      if (e.message.startsWith('TIMEOUT_')) {
-        this.log.warn(`â±ï¸ Claude timeout (${e.message}) â usando cache anterior`);
-      } else {
-        this.log.error('Erro Claude API:', e.message);
-      }
-
-      // ââ ProteÃ§Ã£o 2: usa cache se disponÃ­vel ââââââââââââââââââ
-      if (this.lastAnaliseCache) {
-        this.log.warn('ð¦ Usando anÃ¡lise em cache do Ãºltimo segundo');
-        const cached = { ...this.lastAnaliseCache, fromCache: true, cacheTs: this.lastAnaliseCache?.cacheTs || Date.now() };
-        this.bus.emit('ai:analise', cached);
-        return;
-      }
-
-      // ââ ProteÃ§Ã£o 3: modo degradado se 3+ erros consecutivos ââ
-      if (this.claudeErros >= 3) {
-        this.claudeOffline = true;
-        this.log.warn('ð´ Claude OFFLINE â ativando modo degradado');
-        this._modoDegradado(motivo);
-        return;
-      }
-
-      this._emitirStub(motivo);
-    }
-    } finally {
-      this._isAnalyzing = false;
+  _sairJanela() {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    // Parar e limpar AdaptiveLog temporário do leilão
+    if (this.leilaoLogTimer) { clearInterval(this.leilaoLogTimer); this.leilaoLogTimer = null; }
+    if (this.leilaoLog && this.leilaoLog.length > 0) {
+      this.log.info(`AdaptiveLog leilão: ${this.leilaoLog.length} snapshots — limpando`);
+      this.leilaoLog = [];
     }
   }
 
