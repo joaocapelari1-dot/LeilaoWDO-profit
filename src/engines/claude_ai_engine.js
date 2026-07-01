@@ -33,12 +33,17 @@ class ClaudeAIEngine {
     this.stubMode     = false;
 
     // ── Conversa acumulativa ─────────────────────────────────────
-    // Em vez de chamadas independentes, mantemos o histórico da
-    // conversa ao longo do leilão. O Claude acumula contexto e
-    // observa tendências ao longo dos 6 minutos (8h55-9h01).
-    this.conversaHistorico = []; // [{role:'user',content:...},{role:'assistant',content:...}]
+    this.conversaHistorico = [];
     this.conversaIniciada  = false;
-    this.updateCount       = 0;  // quantos updates enviamos nesta sessão
+    this.updateCount       = 0;
+
+    // ── AdaptiveLog temporário do leilão ─────────────────────────
+    // Buffer de curto prazo: acumula snapshots a cada 30s durante
+    // 8h55-9h01. Se o Claude cair e reiniciar, ele lê esse log
+    // antes de continuar — mantém contexto mesmo após reconexão.
+    // Limpo automaticamente ao final do leilão.
+    this.leilaoLog = [];  // [{ts, tp, surplus, lado, aucVol, aggRatio, flowDelta, iceberg, observacao}]
+    this.leilaoLogTimer = null;
 
     this._initClient();
 
@@ -227,10 +232,15 @@ class ClaudeAIEngine {
     // Notifica Telegram imediatamente na 1Âª janela â ANTES da call
     if (!this._claudeIniciouNotificado) {
       this._claudeIniciouNotificado = true;
-      // Reset da conversa acumulativa para o novo pregão
+      // Reset da conversa acumulativa e do leilaoLog para o novo pregão
       this.conversaHistorico = [];
       this.conversaIniciada  = false;
       this.updateCount       = 0;
+      this.leilaoLog         = [];
+      // Iniciar gravação do AdaptiveLog temporário a cada 30s
+      if (this.leilaoLogTimer) clearInterval(this.leilaoLogTimer);
+      this.leilaoLogTimer = setInterval(() => this._gravarLeilaoLog(), 30000);
+      this._gravarLeilaoLog(); // snapshot imediato no início
       this.bus.emit('claude:iniciou', { hora: new Date().toLocaleTimeString('pt-BR') });
     }
 
@@ -421,7 +431,61 @@ Responda SOMENTE em JSON vÃ¡lido sem markdown.`;
 
   // ââ Prompt completo âââââââââââââââââââââââââââââââââââââââââââ
 
-  // ── Prompt inicial (8h55:00) — contexto completo ──────────────────
+  // ── AdaptiveLog temporário do leilão ─────────────────────────────
+  // Grava snapshot a cada 30s durante 8h55-9h01.
+  // Usado para recuperação: se Claude cair e reiniciar, lê esse log
+  // e retoma a análise com contexto acumulado.
+  _gravarLeilaoLog() {
+    const f  = this.lastFeatures || {};
+    const fd = this.lastDOL;
+    const ic = this.lastIceberg;
+    const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const hora = `${String(brt.getUTCHours()).padStart(2,'0')}:${String(brt.getUTCMinutes()).padStart(2,'0')}:${String(brt.getUTCSeconds()).padStart(2,'0')}`;
+
+    const snapshot = {
+      ts:         Date.now(),
+      hora,
+      tp:         f.auction?.theoreticalPrice?.toFixed(2) ?? null,
+      surplus:    f.auction?.surplus ?? null,
+      lado:       f.auction?.side ?? null,
+      aucVol:     f.auction?.volumeAtAuction ?? 0,
+      aggRatio:   f.aggRatio != null ? Math.round(f.aggRatio * 100) : null,
+      flowDelta:  f.flowDelta ?? 0,
+      // DOL
+      dolTp:      fd?.auction?.theoreticalPrice?.toFixed(2) ?? null,
+      dolSurplus: fd?.auction?.surplus ?? null,
+      dolLado:    fd?.auction?.side ?? null,
+      dolAgg:     fd?.aggRatio != null ? Math.round(fd.aggRatio * 100) : null,
+      // Iceberg
+      iceberg:    ic && (Date.now() - ic.detectedAt) < 60000
+                    ? { preco: ic.price, lado: ic.side, count: ic.count }
+                    : null,
+      // Última observação do Claude
+      observacao: this.lastAnalise?.reasoning ?? null,
+      confianca:  this.lastAnalise ? Math.round((this.lastAnalise.confianca || 0) * 100) : null,
+      veredito:   this.lastAnalise?.veredito ?? null,
+    };
+
+    this.leilaoLog.push(snapshot);
+    // Manter apenas os últimos 20 snapshots (~10 minutos)
+    if (this.leilaoLog.length > 20) this.leilaoLog.shift();
+  }
+
+  // Gera um resumo textual do AdaptiveLog para injetar no prompt de recuperação
+  _resumirLeilaoLog() {
+    if (!this.leilaoLog || this.leilaoLog.length === 0) return null;
+    const linhas = this.leilaoLog.map(s =>
+      `[${s.hora}] TP=${s.tp ?? '?'} Surplus=${s.surplus ?? '?'} Lado=${s.lado ?? '?'} ` +
+      `AucVol=${s.aucVol} Agress=${s.aggRatio ?? '?'}%C DOL:${s.dolTp ?? '?'}/${s.dolLado ?? '?'}` +
+      (s.iceberg ? ` 🧊${s.iceberg.lado}@${s.iceberg.preco}x${s.iceberg.count}` : '') +
+      (s.observacao ? ` | Claude: "${s.observacao}" (${s.confianca}%)` : '')
+    );
+    return `HISTÓRICO DO LEILÃO (últimos ${this.leilaoLog.length} snapshots de 30s):
+` + linhas.join('
+');
+  }
+
+    // ── Prompt inicial (8h55:00) — contexto completo ──────────────────
   // Enviado UMA VEZ no início do leilão. Contém tudo: macro, gap,
   // calendário, dados WDO/DOL. O Claude começa a "acompanhar" o leilão.
   _buildPromptInicial(motivo) {
