@@ -2122,96 +2122,41 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
                 {aiAnalysis?.confianca >= 0.85 ? '✓ OPERARIA' : aiAnalysis?.confianca > 0 ? 'aguardando...' : ''}
               </div>
             </div>
-            {/* Barra amplitude */}
+            {/* Barra amplitude — escala crescente 1pt até 20pt+ */}
             <div style={{ flex:1 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
-                <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700, color:C.green }}>
-                  {aiAnalysis?.alvo1Ticks > 0 ? aiAnalysis.alvo1Ticks+'t' : '—'}
-                </span>
-                <span style={{ fontSize:8, color:C.muted }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                <span style={{ fontSize:8, color:C.muted, letterSpacing:1 }}>AMPLITUDE</span>
+                <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
+                  color: aiAnalysis?.alvo1Ticks > 0 ?
+                    (aiAnalysis.alvo1Ticks >= 20 ? C.green : aiAnalysis.alvo1Ticks >= 10 ? C.gold : C.muted) : C.muted }}>
                   {aiAnalysis?.alvo1Ticks > 0 ? (aiAnalysis.alvo1Ticks/2).toFixed(0)+'pts' : '—'}
                 </span>
               </div>
-              <div style={{ height:4, background:C.border, borderRadius:2, overflow:'hidden' }}>
-                <div style={{ height:'100%', borderRadius:2, transition:'width 0.5s',
-                  width: aiAnalysis?.alvo1Ticks > 0 ? Math.min(aiAnalysis.alvo1Ticks/20*100, 100)+'%' : '0%',
-                  background: aiAnalysis?.alvo1Ticks >= 12 ? C.green : aiAnalysis?.alvo1Ticks >= 8 ? C.gold : C.muted
-                }} />
+              {/* Escala 1-20pts com marcadores */}
+              <div style={{ position:'relative', height:14 }}>
+                {/* Fundo com marcadores de escala */}
+                <div style={{ display:'flex', height:6, gap:1, marginBottom:2 }}>
+                  {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map(pt => {
+                    const ticks = pt * 2;
+                    const ativo = aiAnalysis?.alvo1Ticks > 0 && ticks <= aiAnalysis.alvo1Ticks;
+                    const cor = pt >= 15 ? C.green : pt >= 8 ? C.gold : '#475569';
+                    return (
+                      <div key={pt} style={{
+                        flex:1, height:'100%', borderRadius:1,
+                        background: ativo ? cor : 'rgba(255,255,255,0.08)',
+                        transition:'background 0.3s'
+                      }} />
+                    );
+                  })}
+                </div>
+                {/* Labels de referência */}
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:7, color:C.muted }}>
+                  <span>1pt</span>
+                  <span>5pt</span>
+                  <span>10pt</span>
+                  <span>20pt+</span>
+                </div>
               </div>
-            </div>
-          </div>
-          {aiAnalysis?.alvo1Preco > 0 && (
-            <div style={{ display:'flex', justifyContent:'space-between', marginTop:4, fontSize:8, color:C.muted }}>
-              <span>entrada: {aiAnalysis?.precoEntrada?.toFixed(1) || '—'}</span>
-              <span style={{ color:C.green }}>alvo: {aiAnalysis.alvo1Preco?.toFixed(1)}</span>
-              <span style={{ color:C.red }}>stop: {aiAnalysis?.stopPreco?.toFixed(1) || '—'}</span>
-              <span style={{ color:C.gold }}>RR: {aiAnalysis?.rr?.toFixed(2) || '—'}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Spread WDO-DOL */}
-        <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:4, padding:'6px 8px' }}>
-          <div style={{ fontSize:8, color:C.dim, letterSpacing:1, marginBottom:3 }}>SPREAD WDO·DOL</div>
-          <div style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
-            color: spread?.divergente ? C.red : C.green }}>
-            {spread?.spread?.toFixed(1) || '—'} pts
-          </div>
-          <div style={{ fontSize:8, color: spread?.divergente ? C.red : C.muted }}>
-            {spread?.divergente ? '✗ DIVERGENTE' : '✓ NORMAL'}
-          </div>
-        </div>
-
-        {/* Volume Ratio */}
-        <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:4, padding:'6px 8px' }}>
-          <div style={{ fontSize:8, color:C.dim, letterSpacing:1, marginBottom:3 }}>VOL RATIO</div>
-          <div style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
-            color: volumeRatio?.forte ? C.green : volumeRatio?.fraco ? C.red : C.muted }}>
-            {volumeRatio?.ratio ? `${volumeRatio.ratio.toFixed(1)}x` : '—'}
-          </div>
-          <div style={{ fontSize:8, color:C.muted }}>média {volumeRatio?.media || '—'}</div>
-        </div>
-
-      </div>
-
-      {/* Tunnel */}
-      {tunnel?.risco && tunnel.risco !== 'desconhecido' && (
-        <div style={{ marginTop:6, padding:'4px 8px', borderRadius:4,
-          background: tunnel.risco === 'alto' ? 'rgba(239,68,68,0.1)' : 'rgba(0,0,0,0.2)',
-          border: `1px solid ${tunnel.risco === 'alto' ? C.red+'40' : C.border}` }}>
-          <div style={{ fontSize:8, color:C.dim, marginBottom:2 }}>TUNNEL LIMITS B3</div>
-          <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, fontFamily:'monospace' }}>
-            <span style={{ color:C.green }}>Piso: {tunnel.lowerLimit?.toFixed(1) || '—'}</span>
-            <span style={{ color: tunnel.risco === 'alto' ? C.red : C.muted }}>
-              Risco: {tunnel.risco?.toUpperCase()}
-            </span>
-            <span style={{ color:C.red }}>Teto: {tunnel.upperLimit?.toFixed(1) || '—'}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-export function CMERangePanel({ macro }) {
-  const [lastRange, setLastRange] = React.useState(null)
-  React.useEffect(() => { if (macro?.cmeRange) setLastRange(macro.cmeRange) }, [macro])
-  const range = macro?.cmeRange || lastRange
-  return (
-    <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:6, padding:'10px 12px' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-        <span style={{ fontSize:10, color:'rgba(255,255,255,0.4)', letterSpacing:1, fontWeight:600 }}>CME · RANGE MADRUGADA</span>
-        {range && <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>{range.source === 'yahoo_6L=F' ? 'CME 6L real' : (range.candles ? range.candles + ' candles' : '')}</span>}
-      </div>
-
-      {!range ? (
-        <div style={{ fontSize:10, color:'rgba(255,255,255,0.3)' }}>Disponível Á s 8h45...</div>
-      ) : (
-        <>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:8 }}>
-            <div style={{ textAlign:'center', background:'rgba(34,197,94,0.1)', borderRadius:4, padding:'6px 4px' }}>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:2 }}>MÁXIMA</div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#22c55e', fontFamily:'monospace' }}>{parseFloat(range.max).toFixed(3)}</div>
             </div>
             <div style={{ textAlign:'center', background:'rgba(255,255,255,0.05)', borderRadius:4, padding:'6px 4px' }}>
               <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:2 }}>RANGE</div>
