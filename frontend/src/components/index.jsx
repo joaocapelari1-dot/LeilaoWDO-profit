@@ -369,8 +369,22 @@ export function AIPanel({ aiAnalysis }) {
     <div style={panel}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
         <span style={label}>ANÁLISE</span>
-        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+        <div style={{ display:'flex', gap:4, alignItems:'center', flexWrap:'wrap' }}>
           <span style={{ fontSize:9, color: ai.source==='stub' ? C.gold : C.blue }}>{(ai.source||'').toUpperCase()}</span>
+          {ai.fromCache && (
+            <span style={{ fontSize:8, color:'#f97316', background:'rgba(249,115,22,0.15)', border:'1px solid rgba(249,115,22,0.4)', padding:'1px 5px', borderRadius:2 }}>
+              ⚠ CACHE {ai.cacheTs ? new Date(ai.cacheTs).toLocaleTimeString('pt-BR',{hour12:false}) : ''}
+            </span>
+          )}
+          {ai.fromCache && (
+            <button
+              onClick={() => fetch('/api/claude/reiniciar', {method:'POST'}).catch(()=>{})}
+              style={{ fontSize:7, color:'#94a3b8', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.15)',
+                       padding:'2px 6px', borderRadius:2, cursor:'pointer', letterSpacing:0.5 }}
+              title="Forçar nova análise do Claude">
+              ↺ REINICIAR
+            </button>
+          )}
           {ai.emJanela && <span style={{ fontSize:8, color:C.gold, background:'rgba(245,158,11,0.15)', padding:'1px 4px', borderRadius:2 }}>JANELA 1s</span>}
         </div>
       </div>
