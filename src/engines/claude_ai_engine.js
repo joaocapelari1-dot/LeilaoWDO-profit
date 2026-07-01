@@ -400,6 +400,88 @@ Responda SOMENTE em JSON vÃ¡lido sem markdown.`;
   }
 
   // ââ Prompt completo âââââââââââââââââââââââââââââââââââââââââââ
+
+  // ── Prompt inicial (8h55:00) — contexto completo ──────────────────
+  // Enviado UMA VEZ no início do leilão. Contém tudo: macro, gap,
+  // calendário, dados WDO/DOL. O Claude começa a "acompanhar" o leilão.
+  _buildPromptInicial(motivo) {
+    const f  = this.lastFeatures || {};
+    const fd = this.lastDOL;
+    const m  = this.lastMacro;
+    const ctx = this.lastContext || {};
+
+    const macroTxt = m ? `DXY: ${m.dxy?.price?.toFixed(3)} (${m.dxy?.changePct?.toFixed(2)}%) | USD/BRL: ${m.usdbrl?.price?.toFixed(4)} | VIX: ${m.vix?.price?.toFixed(1)}${m.vix?.price > 25 ? ' ⚠️' : ''} | S&P: ${m.sp500?.price?.toFixed(0)} | Score: ${m.macroScore}/10` : 'Macro indisponível';
+
+    const gapTxt = ctx.gap ? `Gap: ${ctx.gap.gapPct > 0 ? '+' : ''}${ctx.gap.gapPct}% (${ctx.gap.classificacao}) | Fechamento ontem: ${ctx.gap.prevClose}` : 'Gap: calculando...';
+
+    const calTxt = ctx.calendario?.temEventoCritico
+      ? `⚠️ EVENTOS ALTO IMPACTO: ${(ctx.calendario.eventosProximos||[]).map(e => e.nome + ' ' + e.hora).join(', ')}`
+      : 'Sem eventos críticos nas próximas 2h';
+
+    const wdoTxt = `WDO: Last=${f.last} TP=${f.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${f.auction?.surplus ?? '?'} Lado=${f.auction?.side ?? '?'} AucVol=${f.auction?.volumeAtAuction ?? 0} Agress=${((f.aggRatio||0.5)*100).toFixed(0)}%C Flow=${f.flowDelta ?? 0}`;
+
+    const dolTxt = fd ? `DOL: Last=${fd.last} TP=${fd.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${fd.auction?.surplus ?? '?'} Lado=${fd.auction?.side ?? '?'} Agress=${((fd.aggRatio||0.5)*100).toFixed(0)}%C Flow=${fd.flowDelta ?? 0}` : 'DOL: aguardando';
+
+    return `LEILÃO INICIADO — 8h55 BRT | Acompanhe e acumule contexto até o veredicto final.
+
+MACRO: ${macroTxt}
+${gapTxt}
+${calTxt}
+
+${wdoTxt}
+${dolTxt}
+
+Responda APENAS: {"observando": true, "impressao_inicial": "max 15 palavras sobre o setup atual"}`;
+  }
+
+  // ── Prompt de update (a cada 60s) — apenas o delta ─────────────────
+  // Enviado a cada ~60s durante o leilão. Contém APENAS o que mudou.
+  // O Claude já tem o contexto inicial e vai acumulando observações.
+  _buildPromptUpdate(motivo) {
+    const f  = this.lastFeatures || {};
+    const fd = this.lastDOL;
+    const ic = this.lastIceberg;
+    const icebergAtivo = ic && (Date.now() - ic.detectedAt) < 45000;
+
+    const wdoTxt = `WDO: TP=${f.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${f.auction?.surplus ?? '?'} Lado=${f.auction?.side ?? '?'} AucVol=${f.auction?.volumeAtAuction ?? 0} Agress=${((f.aggRatio||0.5)*100).toFixed(0)}%C Flow=${f.flowDelta ?? 0}`;
+    const dolTxt = fd ? `DOL: TP=${fd.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${fd.auction?.surplus ?? '?'} Lado=${fd.auction?.side ?? '?'} Agress=${((fd.aggRatio||0.5)*100).toFixed(0)}%C Flow=${fd.flowDelta ?? 0}` : '';
+    const iceTxt = icebergAtivo ? `🧊 ICEBERG: preco=${ic.price} lado=${ic.side} count=${ic.count} vol=${ic.totalVol}` : '';
+
+    return `UPDATE #${this.updateCount} | ${motivo}
+${wdoTxt}
+${dolTxt}${iceTxt ? `
+${iceTxt}` : ''}
+
+Responda APENAS: {"observando": true, "tendencia": "max 10 palavras descrevendo evolução do setup"}`;
+  }
+
+  // ── Prompt de veredicto final — decisão explícita ───────────────────
+  // Enviado UMA VEZ quando o 1º negócio real fecha (auc_vol >= 100).
+  // O Claude tem todo o contexto acumulado e dá o veredicto definitivo.
+  _buildPromptVeredictoFinal() {
+    const f  = this.lastFeatures || {};
+    const fd = this.lastDOL;
+    const m  = this.lastMacro;
+    const ic = this.lastIceberg;
+    const icebergAtivo = ic && (Date.now() - ic.detectedAt) < 60000;
+
+    const wdoFinal = `WDO FINAL: TP=${f.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${f.auction?.surplus ?? '?'} Lado=${f.auction?.side ?? '?'} AucVol=${f.auction?.volumeAtAuction ?? 0} Agress=${((f.aggRatio||0.5)*100).toFixed(0)}%C/${((1-(f.aggRatio||0.5))*100).toFixed(0)}%V Flow=${f.flowDelta ?? 0}`;
+    const dolFinal = fd ? `DOL FINAL: TP=${fd.auction?.theoreticalPrice?.toFixed(2) ?? '?'} Surplus=${fd.auction?.surplus ?? '?'} Lado=${fd.auction?.side ?? '?'} Agress=${((fd.aggRatio||0.5)*100).toFixed(0)}%C Flow=${fd.flowDelta ?? 0}` : '';
+    const macroFinal = m ? `MACRO: Score=${m.macroScore}/10 DXY=${m.dxy?.changePct?.toFixed(2)}% VIX=${m.vix?.price?.toFixed(1)}` : '';
+    const iceFinal = icebergAtivo ? `ICEBERG ATIVO: preco=${ic.price} lado=${ic.side} count=${ic.count}` : '';
+
+    return `⚡ VEREDICTO FINAL SOLICITADO — 1º negócio fechou.
+Você acompanhou o leilão desde 8h55. Com base em TUDO que observou:
+
+${wdoFinal}
+${dolFinal}
+${macroFinal}
+${iceFinal}
+
+Emita o JSON de veredicto completo conforme o schema do sistema. Esta é a decisão final.`;
+  }
+
+
   _buildPrompt(motivo) {
     const f  = this.lastFeatures;
     const fd = this.lastDOL;
