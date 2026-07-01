@@ -68,6 +68,12 @@ class ClaudeAIEngine {
     this.claudeErros             = 0;      // contador de erros consecutivos
     this.veredictoFinalEmitido   = false;  // garante 1 veredicto final por pregÃ£o
     bus.on('iceberg:detected',   (ic) => this._onIceberg(ic));
+    bus.on('claude:reiniciar',    () => {
+      this.lastAnaliseCache = null;
+      this.claudeErros = 0;
+      this.claudeOffline = false;
+      this.log.info('Cache do Claude limpo manualmente — próxima análise será nova');
+    });
     bus.on('risk:approved',      (s) => { this.lastSignalDirection = s.direction; });
 // Janela encerra por horÃ¡rio â sem dependÃªncia do AuctionSM
   }
@@ -257,7 +263,7 @@ class ClaudeAIEngine {
       const text    = response.content[0]?.text || '';
       const analise = this._parsear(text, motivo);
       this.lastAnalise  = analise;
-      this.lastAnaliseCache = analise; // ââ ProteÃ§Ã£o 2: salva cache
+      this.lastAnaliseCache = { ...analise, cacheTs: Date.now() }; // ââ ProteÃ§Ã£o 2: salva cache
       this.claudeErros  = 0;
       this.claudeOffline = false;
 
@@ -276,7 +282,7 @@ class ClaudeAIEngine {
       // ââ ProteÃ§Ã£o 2: usa cache se disponÃ­vel ââââââââââââââââââ
       if (this.lastAnaliseCache) {
         this.log.warn('ð¦ Usando anÃ¡lise em cache do Ãºltimo segundo');
-        const cached = { ...this.lastAnaliseCache, fromCache: true };
+        const cached = { ...this.lastAnaliseCache, fromCache: true, cacheTs: this.lastAnaliseCache?.cacheTs || Date.now() };
         this.bus.emit('ai:analise', cached);
         return;
       }
