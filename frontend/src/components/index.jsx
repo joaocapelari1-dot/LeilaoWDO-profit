@@ -2148,26 +2148,9 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
                 </div>
               </div>
             </div>
-            <div style={{ textAlign:'center', background:'rgba(255,255,255,0.05)', borderRadius:4, padding:'6px 4px' }}>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:2 }}>RANGE</div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#f59e0b', fontFamily:'monospace' }}>{range.range} pts</div>
-            </div>
-            <div style={{ textAlign:'center', background:'rgba(239,68,68,0.1)', borderRadius:4, padding:'6px 4px' }}>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:2 }}>MÁNIMA</div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#ef4444', fontFamily:'monospace' }}>{parseFloat(range.min).toFixed(3)}</div>
             </div>
           </div>
-
-          {/* Barra visual do range */}
-          <div style={{ position:'relative', height:8, background:'rgba(255,255,255,0.06)', borderRadius:4, overflow:'hidden' }}>
-            <div style={{ position:'absolute', left:0, top:0, width:'100%', height:'100%',
-              background:'linear-gradient(90deg, #ef444440, #f59e0b40, #22c55e40)', borderRadius:4 }} />
-          </div>
-          <div style={{ display:'flex', justifyContent:'space-between', fontSize:8, color:'rgba(255,255,255,0.25)', marginTop:3 }}>
-            <span>suporte</span>
-            <span>resistência</span>
-          </div>
-        </>
+        </div>
       )}
     </div>
   )
