@@ -32,6 +32,14 @@ class ClaudeAIEngine {
     this.totalChamadas = 0;
     this.stubMode     = false;
 
+    // ── Conversa acumulativa ─────────────────────────────────────
+    // Em vez de chamadas independentes, mantemos o histórico da
+    // conversa ao longo do leilão. O Claude acumula contexto e
+    // observa tendências ao longo dos 6 minutos (8h55-9h01).
+    this.conversaHistorico = []; // [{role:'user',content:...},{role:'assistant',content:...}]
+    this.conversaIniciada  = false;
+    this.updateCount       = 0;  // quantos updates enviamos nesta sessão
+
     this._initClient();
 
     // Thresholds adaptativos
@@ -248,14 +256,30 @@ class ClaudeAIEngine {
         setTimeout(() => reject(new Error(TIMEOUT_LABEL)), TIMEOUT_MS)
       );
 
+      // ── Conversa acumulativa ────────────────────────────────────
+      // Na primeira chamada: inicia conversa com contexto completo.
+      // Nas chamadas seguintes: envia apenas o DELTA (o que mudou),
+      // aproveitando o contexto acumulado do Claude ao longo do leilão.
+      // No veredicto final: solicita decisão explícita com todos os dados.
+      this.updateCount++;
+      const isFirst   = !this.conversaIniciada;
+      const isFinal   = motivo === 'veredicto_final';
+      const userMsg   = isFirst
+        ? this._buildPromptInicial(motivo)
+        : isFinal
+          ? this._buildPromptVeredictoFinal()
+          : this._buildPromptUpdate(motivo);
+
+      this.conversaHistorico.push({ role: 'user', content: userMsg });
+
       const claudePromise = this.client.messages.create({
         model:      'claude-sonnet-4-6',
-        max_tokens: MAX_TOKENS,
+        max_tokens: isFinal ? 800 : 300, // veredicto final precisa de mais tokens
         system: [
           { type: 'text', text: this._systemPrompt(), cache_control: { type: 'ephemeral' } },
           { type: 'text', text: this._jsonSchema(),    cache_control: { type: 'ephemeral' } },
         ],
-        messages:   [{ role: 'user', content: this._buildPrompt(motivo) }],
+        messages: this.conversaHistorico,
       });
 
       const response = await Promise.race([claudePromise, timeoutPromise]);
