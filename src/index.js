@@ -213,6 +213,7 @@ if (isMainThread) {
     'signal:approved', 'mdil:status', 'mdil:ghost_feed', 'mdil:real_feed',
     'risk:approved', 'risk:rejected', 'ai:analise',
     'risk:snapshot', 'risk:window_open', 'risk:window_aborted',
+    'adaptive:thresholds', 'adaptive:pregao_salvo', 'adaptive:correlacao',
     'iceberg:detected', 'esgotamento:detectado', 'fill',
   ];
   if (parentPort) {
