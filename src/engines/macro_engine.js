@@ -489,11 +489,89 @@ class MacroEngine {
   }
 
   // Range madrugada usando dado REAL do CME (6L), nao mais proxy via USD/BRL Twelve Data
+  // Range da madrugada do 6L (Real futuro CME) via candles 5min do Yahoo Finance.
+  // Pega os candles de 00h00 ate 08h55 BRT (03h00-11h55 UTC) do dia atual,
+  // e calcula maximo e minimo reais negociados na sessao da madrugada.
+  // dayHigh/dayLow do meta NAO funciona antes de 10h BRT (sessao americana
+  // ainda nao abriu); a solucao e usar os candles historicos do dia.
   async _fetchCMERangeReal() {
-    const cme = await this._fetchCME6L();
-    if (!cme || !cme.dayHigh || !cme.dayLow) return null;
-    const range = Math.round((cme.dayHigh - cme.dayLow) * 20 * 10) / 10;
-    return { max: cme.dayHigh.toFixed(4), min: cme.dayLow.toFixed(4), range, source: 'yahoo_6L=F' };
+    try {
+      const data = await new Promise((resolve) => {
+        const options = {
+          hostname: 'query1.finance.yahoo.com',
+          path: '/v8/finance/chart/6L=F?interval=5m&range=1d',
+          method: 'GET',
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          timeout: 8000,
+        };
+        const req = https.request(options, (res) => {
+          let body = '';
+          res.on('data', c => body += c);
+          res.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve(null); } });
+        });
+        req.on('error', () => resolve(null));
+        req.on('timeout', () => { req.destroy(); resolve(null); });
+        req.end();
+      });
+
+      const result = data?.chart?.result?.[0];
+      if (!result) return null;
+
+      const timestamps = result.timestamp || [];
+      const quotes = result.indicators?.quote?.[0] || {};
+      const highs = quotes.high || [];
+      const lows  = quotes.low  || [];
+      const closes = quotes.close || [];
+
+      // Filtrar apenas candles da madrugada BRT: 00h00-08h55 BRT = 03h00-11h55 UTC
+      const agora = new Date();
+      const hoje = new Date(agora);
+      hoje.setUTCHours(3, 0, 0, 0); // 03h UTC = 00h BRT
+      const fim = new Date(agora);
+      fim.setUTCHours(11, 55, 0, 0); // 11h55 UTC = 08h55 BRT
+
+      let max = -Infinity, min = Infinity, countCandles = 0;
+      const volumes = quotes.volume || [];
+      let maxVolPrice = 0, maxVol = 0;
+
+      timestamps.forEach((ts, i) => {
+        const t = new Date(ts * 1000);
+        if (t >= hoje && t <= fim) {
+          if (highs[i] && highs[i] > max) max = highs[i];
+          if (lows[i]  && lows[i]  < min) min = lows[i];
+          if (volumes[i] && volumes[i] > maxVol) {
+            maxVol = volumes[i];
+            maxVolPrice = closes[i];
+          }
+          countCandles++;
+        }
+      });
+
+      if (max === -Infinity || min === Infinity || countCandles < 3) {
+        this.log.warn('CME Range Madrugada: candles insuficientes (' + countCandles + ')');
+        return null;
+      }
+
+      // Converter de USD/BRL (6L cota em USD por 1 BRL) para BRL/USD
+      const maxBrl = max > 0 ? parseFloat((1 / min).toFixed(4))  : 0; // inverso: min USD = max BRL
+      const minBrl = min < Infinity ? parseFloat((1 / max).toFixed(4)) : 0;
+      const rangePoints = Math.round((maxBrl - minBrl) * 20 * 10) / 10;
+      const pocBrl = maxVolPrice > 0 ? parseFloat((1 / maxVolPrice).toFixed(4)) : 0;
+
+      this.log.info(\`CME Range Madrugada: max=\${maxBrl} min=\${minBrl} range=\${rangePoints}pts candles=\${countCandles}\`);
+
+      return {
+        max: maxBrl.toFixed(4),
+        min: minBrl.toFixed(4),
+        range: rangePoints,
+        poc: pocBrl > 0 ? pocBrl.toFixed(4) : null,
+        candles: countCandles,
+        source: 'yahoo_6L=F_madrugada'
+      };
+    } catch (e) {
+      this.log.warn('CME Range Madrugada erro: ' + e.message);
+      return null;
+    }
   }
 
   async _calcCMESpread(usdbrl) {
