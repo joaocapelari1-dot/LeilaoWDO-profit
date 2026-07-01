@@ -2148,10 +2148,9 @@ export function MarketFeaturesPanel({ mktFeatures, aiAnalysis }) {
                 </div>
               </div>
             </div>
-            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
