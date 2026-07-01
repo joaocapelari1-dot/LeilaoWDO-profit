@@ -308,6 +308,26 @@ class ClaudeAIEngine {
     } catch (e) {
       this.claudeErros++;
 
+      // ── CRÍTICO: proteção do histórico da conversa acumulativa ──────
+      // Se a chamada falhou DEPOIS de adicionar a mensagem do user ao
+      // histórico (mas ANTES de receber resposta do assistant), o histórico
+      // fica com user→user sem assistant no meio, o que quebra a API na
+      // próxima chamada. Removemos a última mensagem se ela for 'user'.
+      if (this.conversaHistorico.length > 0 &&
+          this.conversaHistorico[this.conversaHistorico.length - 1].role === 'user') {
+        this.conversaHistorico.pop();
+        this.log.warn('⚠ Histórico da conversa corrigido — removida mensagem user sem resposta');
+      }
+
+      // Se 3+ erros consecutivos: resetar conversa completamente para
+      // próxima tentativa partir do zero (mais seguro que manter histórico corrompido)
+      if (this.claudeErros >= 3) {
+        this.conversaHistorico = [];
+        this.conversaIniciada  = false;
+        this.updateCount       = 0;
+        this.log.warn('🔄 Histórico da conversa resetado após 3 erros consecutivos');
+      }
+
       if (e.message.startsWith('TIMEOUT_')) {
         this.log.warn(`â±ï¸ Claude timeout (${e.message}) â usando cache anterior`);
       } else {
