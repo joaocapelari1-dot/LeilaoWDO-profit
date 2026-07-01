@@ -44,6 +44,12 @@ function createServer(bus, engines = {}) {
     res.json({ ok: true, sent: fakeBook });
   });
 
+  // Endpoint para reiniciar análise do Claude manualmente (limpa cache)
+  app.post('/api/claude/reiniciar', (req, res) => {
+    bus.emit('claude:reiniciar', { ts: Date.now() });
+    res.json({ ok: true, msg: 'Reinicialização do Claude solicitada' });
+  });
+
   app.get('/api/status', (req, res) => {
     res.json({
       risk:      engines?.risk?.getStatus?.()      || {},
