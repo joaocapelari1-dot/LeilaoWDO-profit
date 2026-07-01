@@ -165,6 +165,16 @@ class MacroEngine {
         this.bus.emit('macro:update', this.snapshot);
         return;
       }
+      // Delay de 60s no primeiro fetch após inicialização para evitar
+      // burst de créditos em redeploys rápidos (cada restart zera _lastTwelveFetch
+      // e chama imediatamente, consumindo 7 créditos de 8 disponíveis por minuto)
+      if (!this._firstFetchDone) {
+        this._firstFetchDone = true;
+        this._lastTwelveFetch = now - 240000 + 60000; // permite fetch em 60s, não agora
+        this.log.info('Twelve Data: primeiro fetch agendado em 60s (proteção rate limit)');
+        setTimeout(() => this._fetch(), 60000);
+        return;
+      }
       this._lastTwelveFetch = now;
 
       const raw = await this._fetchTwelveDataAll();
