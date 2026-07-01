@@ -151,15 +151,27 @@ export function StatusBar({ tick, connected }) {
 
 // ──────────────────────────────────────────────────
 export function PricePanel({ tick, features }) {
+  const prev  = tick?.prevClose || tick?.open || null
+  const open  = tick?.open || null
+  const last  = tick?.last || 0
+  const chg   = prev && last ? last - prev : null
+  const chgPct = prev && last ? ((last - prev) / prev * 100) : null
   return (
     <div style={panel}>
       <span style={label}>WDO · PRICE</span>
-      <div style={{ fontSize:28, fontWeight:700, color:C.text, letterSpacing:-1, ...mono }}>{tick?.last?.toFixed(2)||'—.—'}</div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:10 }}>
+      <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
+        <div style={{ fontSize:28, fontWeight:700, color:C.text, letterSpacing:-1, ...mono }}>{tick?.last?.toFixed(2)||'—.—'}</div>
+        {chg !== null && <span style={{ fontSize:10, color: chg >= 0 ? C.green : C.red, fontFamily:'monospace' }}>
+          {chg >= 0 ? '+' : ''}{chg.toFixed(2)} ({chgPct >= 0 ? '+' : ''}{chgPct?.toFixed(2)}%)
+        </span>}
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:8 }}>
         <Kv label="BID"        value={tick?.bid?.toFixed(2)}          color={C.green} />
         <Kv label="ASK"        value={tick?.ask?.toFixed(2)}          color={C.red} />
         <Kv label="SPREAD"     value={tick?.spread?.toFixed(2)} />
         <Kv label="VWAP"       value={features?.vwap?.toFixed(2)}     color={C.blue} />
+        <Kv label="FECH.ANT"   value={prev?.toFixed(2)}               color={C.muted} />
+        <Kv label="ABERTURA"   value={open?.toFixed(2)}               color={C.muted} />
         <Kv label="MOMENTUM"   value={features?.momentum?.toFixed(2)} color={features?.momentum>0?C.green:C.red} />
         <Kv label="VOLATILITY" value={features?.volatility?.toFixed(2)} color={C.gold} />
       </div>
@@ -951,43 +963,7 @@ export function DecisionWindow({ windowState, snapshots }) {
 }
 
 // ──────────────────────────────────────────────────
-export function ConfluencePanel({ confluence }) {
-  if (!confluence) return (
-    <div style={panel}>
-      <span style={label}>CONFLUÁNCIA DOL Á WDO</span>
-      <div style={{ color: C.dim, fontSize: 11 }}>Aguardando dados DOL...</div>
-    </div>
-  )
 
-  const color = confluence.aligned ? C.green : C.red
-  const bg    = confluence.aligned ? C.greenDim : C.redDim
-
-  return (
-    <div style={{ ...panel, background: bg, border: `1px solid ${color}40` }}>
-      <span style={label}>CONFLUÁNCIA DOL Á WDO</span>
-      <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 8, letterSpacing: 1 }}>
-        {confluence.aligned ? '✓ ALINHADOS' : '✗ DIVERGENTES'}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-        <Kv label="DOL LADO"    value={confluence.dolSide?.toUpperCase()} color={confluence.dolSide === 'buy' ? C.green : confluence.dolSide === 'sell' ? C.red : C.muted} />
-        <Kv label="WDO LADO"   value={confluence.wdoSide?.toUpperCase()} color={confluence.wdoSide === 'buy' ? C.green : confluence.wdoSide === 'sell' ? C.red : C.muted} />
-        <Kv label="DOL SURPLUS" value={confluence.dolSurplus} color={confluence.dolSurplus > 0 ? C.green : C.red} />
-        <Kv label="WDO SURPLUS" value={confluence.wdoSurplus} color={confluence.wdoSurplus > 0 ? C.green : C.red} />
-      </div>
-      {confluence.direction && (
-        <div style={{ marginTop: 8, padding: '6px 10px', background: `${color}20`, borderRadius: 4, textAlign: 'center' }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color, letterSpacing: 2 }}>
-            {confluence.direction?.toUpperCase()} CONFIRMADO
-          </span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ──────────────────────────────────────────────────
-
-// ──────────────────────────────────────────────────
 export function EsgotamentoAlert({ esgotamento }) {
   if (!esgotamento) return null
 
@@ -1229,7 +1205,7 @@ export function MarketContextPanel({ ctx }) {
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: 9, color: C.dim }}>Disponível com Cedro PRO</div>
+          <div style={{ fontSize: 9, color: C.dim }}>Indisponível nesta versão</div>
         )}
       </div>
     </div>
