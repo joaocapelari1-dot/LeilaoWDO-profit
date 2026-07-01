@@ -2277,3 +2277,58 @@ export function TimesAndTrades({ tape = [], symbol = '', mdilStatus, maxRows = 3
     </div>
   )
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// CMERangePanel — Range da madrugada do 6L (Real futuro CME)
+// Mostra maximo, minimo e POC da sessao 00h-08h55 BRT
+// Dados via Yahoo Finance (candles 5min), disponiveis a partir das 8h45
+// ─────────────────────────────────────────────────────────────────────
+export function CMERangePanel({ macro }) {
+  const C2 = { panel:'#0c1219', border:'#1e2832', text:'#e2e8f0', muted:'#64748b', green:'#22c55e', red:'#ef4444', gold:'#f59e0b', blue:'#3b82f6' }
+  const range = macro?.cmeRange
+
+  if (!range) return (
+    <div style={{ background:C2.panel, border:`1px solid ${C2.border}`, borderRadius:4, padding:'10px 12px', overflow:'hidden' }}>
+      <span style={{ fontSize:10, letterSpacing:2, color:C2.muted, marginBottom:6, display:'block' }}>CME · RANGE MADRUGADA</span>
+      <div style={{ color:C2.muted, fontSize:10 }}>Disponível às 8h45...</div>
+    </div>
+  )
+
+  const rangeNum = parseFloat(range.range) || 0
+  const maxPct = Math.min(100, (rangeNum / 200) * 100)
+
+  return (
+    <div style={{ background:C2.panel, border:`1px solid ${C2.border}`, borderRadius:4, padding:'10px 12px', overflow:'hidden' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+        <span style={{ fontSize:10, letterSpacing:2, color:C2.muted }}>CME · RANGE MADRUGADA</span>
+        <span style={{ fontSize:8, color:C2.muted }}>{range.candles ? `${range.candles} candles` : ''} {range.source === 'yahoo_6L=F_madrugada' ? '6L real' : 'aprox D-1'}</span>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:8 }}>
+        <div>
+          <div style={{ fontSize:8, color:C2.muted, marginBottom:2 }}>MÁXIMA</div>
+          <div style={{ fontSize:12, fontFamily:'monospace', fontWeight:700, color:C2.green }}>{range.max}</div>
+        </div>
+        <div>
+          <div style={{ fontSize:8, color:C2.muted, marginBottom:2 }}>MÍNIMA</div>
+          <div style={{ fontSize:12, fontFamily:'monospace', fontWeight:700, color:C2.red }}>{range.min}</div>
+        </div>
+        <div>
+          <div style={{ fontSize:8, color:C2.muted, marginBottom:2 }}>AMPLITUDE</div>
+          <div style={{ fontSize:12, fontFamily:'monospace', fontWeight:700, color:C2.gold }}>{rangeNum.toFixed(1)} pts</div>
+        </div>
+      </div>
+      {range.poc && (
+        <div style={{ marginBottom:6 }}>
+          <div style={{ fontSize:8, color:C2.muted, marginBottom:2 }}>POC MADRUGADA</div>
+          <div style={{ fontSize:11, fontFamily:'monospace', color:C2.blue }}>{range.poc}</div>
+        </div>
+      )}
+      <div style={{ height:4, background:'rgba(255,255,255,0.08)', borderRadius:2, overflow:'hidden' }}>
+        <div style={{ height:'100%', width:`${maxPct}%`, background: rangeNum > 150 ? C2.red : rangeNum > 80 ? C2.gold : C2.green, borderRadius:2, transition:'width 0.5s' }} />
+      </div>
+      <div style={{ display:'flex', justifyContent:'space-between', fontSize:7, color:C2.muted, marginTop:2 }}>
+        <span>0</span><span>50pts</span><span>100pts</span><span>200pts+</span>
+      </div>
+    </div>
+  )
+}
