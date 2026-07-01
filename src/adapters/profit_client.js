@@ -158,7 +158,7 @@ class ProfitClient {
   }
   _onDaily(msg) {
     const sym=msg.ticker||''; if(!this._isWDO(sym)) return;
-    this.lastWDO.auc_vol=msg.qty||0;this.lastWDO.open=msg.open||0;this.lastWDO.high=msg.high||0;this.lastWDO.low=msg.low||0;
+    this.lastWDO.auc_vol=msg.qty||0;this.lastWDO.open=msg.open||0;this.lastWDO.high=msg.high||0;this.lastWDO.low=msg.low||0;if(msg.close&&!this.lastWDO.prevClose)this.lastWDO.prevClose=msg.close;
   }
 }
 module.exports={ProfitClient};
