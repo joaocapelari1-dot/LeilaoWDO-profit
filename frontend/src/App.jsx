@@ -161,7 +161,7 @@ export default function App() {
             <div style={{ flex:1, display:'grid', gridTemplateColumns:'1fr 1fr', gridTemplateRows:'1fr 1fr 1fr', gap:1, overflow:'hidden' }}>
               <MarketFeaturesPanel mktFeatures={socket.mktFeatures} aiAnalysis={socket.aiAnalysis} />
               <CIPCMEPanel         macro={socket.macro} />
-              <MarketContextPanel  ctx={socket.marketContext} />
+              <ConfluencePanel     confluence={socket.confluence} />
               {/* CalibracaoPanel removido → calibração automática pelo AdaptiveLog */}
               <RiskPanel           riskEvent={socket.riskEvent} />
               <CMERangePanel       macro={socket.macro} />
@@ -178,7 +178,7 @@ export default function App() {
                   <TimesAndTrades tape={socket.tape} symbol="WDOQ26" mdilStatus={socket.mdilStatus?.['WDOQ26']} />
                 </div>
                 <div style={{ flex:'0 0 auto', maxHeight:'40%', overflowY:'auto' }}>
-                  <ConfluencePanel confluence={socket.confluence} />
+                  <MarketContextPanel ctx={socket.marketContext} />
                 </div>
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:1, overflow:'hidden' }}>
