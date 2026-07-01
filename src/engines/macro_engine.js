@@ -558,7 +558,7 @@ class MacroEngine {
       const rangePoints = Math.round((maxBrl - minBrl) * 20 * 10) / 10;
       const pocBrl = maxVolPrice > 0 ? parseFloat((1 / maxVolPrice).toFixed(4)) : 0;
 
-      this.log.info(\`CME Range Madrugada: max=\${maxBrl} min=\${minBrl} range=\${rangePoints}pts candles=\${countCandles}\`);
+      this.log.info(`CME Range Madrugada: max=${maxBrl} min=${minBrl} range=${rangePoints}pts candles=${countCandles}`);
 
       return {
         max: maxBrl.toFixed(4),
