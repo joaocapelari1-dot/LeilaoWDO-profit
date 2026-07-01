@@ -196,3 +196,8 @@ export default function App() {
 
       {tab === 'execution' && <ExecutionStats adaptive={socket.adaptive} fills={socket.fills} />}
 
+    </div>
+  )
+}
+
+export default App
