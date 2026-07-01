@@ -146,7 +146,7 @@ export default function App() {
           {/* Coluna esquerda */}
           <div style={{ display:'flex', flexDirection:'column', gap:1, overflow:'hidden' }}>
             <div style={{ flex:1, display:'flex', flexDirection:'column', gap:1, overflowY:'auto' }}>
-              <PricePanel      tick={socket.tick} features={socket.features} />
+              <PricePanel      tick={socket.tick} features={socket.features} macro={socket.macro} />
               <AuctionPanel    auctionState={socket.auctionState} features={socket.features} signal={socket.signal} />
               <FlowPanel       features={socket.features} />
             </div>
