@@ -112,9 +112,13 @@ class MarketDataIntegrityLayer {
   }
 
   _updateMQS(sym, s, now) {
+    // DOL cheio tem menos liquidez que WDO mini — book pode ficar 3-5s sem
+    // atualizar normalmente. Usar threshold maior para evitar DEGRADED/HEALTHY
+    // repetitivo que não reflete problema real de qualidade do feed.
+    const bookTimeout = sym?.includes('DOL') ? 5000 : 2000;
     let mqs = 100;
     if (!s.hasRealBook) mqs -= 40;
-    else if (s.lastOfferBook && (now - s.lastOfferBook) > 2000) mqs -= 20;
+    else if (s.lastOfferBook && (now - s.lastOfferBook) > bookTimeout) mqs -= 20;
     if (!s.lastTrade) mqs -= 15;
     else if ((now - s.lastTrade) > TRADE_TIMEOUT) mqs -= 25;
     mqs -= s.ghostScore * 3;
