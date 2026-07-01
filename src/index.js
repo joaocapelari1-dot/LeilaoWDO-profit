@@ -80,7 +80,12 @@ if (isMainThread) {
       }
     });
 
-    worker.on('message', ({ type, data }) => {
+    // Repassar comando de reiniciar Claude do MAIN para o worker
+  bus.on('claude:reiniciar', () => {
+    worker.postMessage({ type: 'claude:reiniciar', data: {} });
+  });
+
+  worker.on('message', ({ type, data }) => {
       if (SNAPSHOT_TYPES.includes(type)) lastSnapshot[type] = data;
       bus.emit(type, data);
     });
@@ -221,6 +226,11 @@ if (isMainThread) {
     'iceberg:detected', 'esgotamento:detectado', 'fill',
   ];
   if (parentPort) {
+    // Escutar comandos vindos do MAIN (ex: reiniciar Claude)
+    parentPort.on('message', ({ type, data }) => {
+      if (type === 'claude:reiniciar') bus.emit('claude:reiniciar', data);
+    });
+
     FORWARD_TO_MAIN.forEach(evt => {
       bus.on(evt, (data) => {
         try { parentPort.postMessage({ type: evt, data }); } catch {}
