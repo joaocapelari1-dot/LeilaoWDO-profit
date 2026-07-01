@@ -150,9 +150,11 @@ export function StatusBar({ tick, connected }) {
 }
 
 // ──────────────────────────────────────────────────
-export function PricePanel({ tick, features }) {
-  const prev  = tick?.prevClose || tick?.open || null
-  const open  = tick?.open || null
+export function PricePanel({ tick, features, macro }) {
+  // prevClose: tenta tick.prevClose (da DLL), fallback para usdbrl.prevClose (macro Twelve Data)
+  const prev  = (tick?.prevClose && tick.prevClose > 0 ? tick.prevClose : null) ||
+                (macro?.usdbrl?.prevClose && macro.usdbrl.prevClose > 0 ? macro.usdbrl.prevClose : null)
+  const open  = (tick?.open && tick.open > 0 ? tick.open : null)
   const last  = tick?.last || 0
   const chg   = prev && last ? last - prev : null
   const chgPct = prev && last ? ((last - prev) / prev * 100) : null
