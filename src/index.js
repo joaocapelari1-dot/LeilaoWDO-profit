@@ -157,6 +157,10 @@ if (isMainThread) {
   // e feature:dol nunca disparavam, deixando o ClaudeAIEngine (que depende
   // exclusivamente desses eventos) sem dados de VWAP, agressor, iceberg etc.
   bus.on('normalized:tick', (tick) => { try { features.onTick(tick); } catch (e) { log.error('features.onTick:', e.message); } });
+  // CRITICO: features.onBook() nunca era chamado — _detectIcebergs nunca rodava
+  // porque s.lastBook era sempre null. Conectado agora a market:book:wdo/dol.
+  bus.on('market:book:wdo', (book) => { try { features.onBook(book); } catch (e) { log.error('features.onBook wdo:', e.message); } });
+  bus.on('market:book:dol', (book) => { try { features.onBook(book); } catch (e) { log.error('features.onBook dol:', e.message); } });
   const mmDetector = new MarketMakerDetector(bus);
   const telegram = new TelegramNotifier(bus);
   const adaptive = new AdaptiveLogEngine(bus);
